@@ -15,7 +15,7 @@ for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     count++;
   }
 }
-for (const path of ['account.js', 'js/core.js', 'js/shell.js', 'js/app.js', 'refined.css', 'demo.html', 'demo-cat.webp', 'demo-park.webp', 'demo-walk.webp']) {
+for (const path of ['account.js', 'petcity-bridge.js', 'js/core.js', 'js/shell.js', 'js/app.js', 'refined.css', 'demo.html', 'demo-cat.webp', 'demo-park.webp', 'demo-walk.webp']) {
   if (!existsSync(root + 'public/' + path)) throw Error('Missing asset: ' + path);
 }
 JSON.parse(readFileSync(root + 'vercel.json', 'utf8'));

@@ -6,7 +6,9 @@ import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './she
 
 export function bootPetCity() {
   initShell();
+  let ensureAccountScreen = async () => {};
   onPetCityViewChange(name => {
+    if (name === 'account') void ensureAccountScreen();
     if (name === 'community') community();
     if (name === 'shop') shopPage();
   });
@@ -25,9 +27,12 @@ export function bootPetCity() {
   accountNav.className = 'navpill';
   accountNav.textContent = 'Mi perfil';
   accountNav.hidden = true;
-  document.querySelector('#login-nav').before(accountNav);
-  accountNav.before(careNav);
-  careNav.before(communityNav);
+  const loginNav = document.querySelector('#login-nav');
+  if (loginNav) {
+    loginNav.before(accountNav);
+    accountNav.before(careNav);
+    careNav.before(communityNav);
+  }
   communityNav.onclick = () => { setView('community'); community(); };
   accountNav.onclick = () => { accountTab = 'pets'; accountHome(); };
   careNav.onclick = () => { accountTab = 'services'; accountHome(); };
@@ -60,8 +65,14 @@ export function bootPetCity() {
     btn.addEventListener('click', event => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      void accountHome();
+      openSignIn();
     }, true);
+  }
+
+  function openSignIn() {
+    setView('account');
+    fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Ingresá o creá tu cuenta</h2><p class="fine">Completá email y contraseña en el formulario.</p></div></header>`);
+    login('signin');
   }
 
   const login = (mode = 'signin') => {
@@ -112,20 +123,20 @@ export function bootPetCity() {
       finally { button.disabled = false; }
     };
   };
+  window.__petcitySignIn = openSignIn;
   bindLoginNav();
-  async function accountHome() {
+  ensureAccountScreen = async () => {
     try {
       const { data, error } = await getClient().auth.getUser();
-      if (error || !data.user) {
-        setView('account');
-        fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Ingresá o creá tu cuenta</h2><p class="fine">Se abre el formulario en esta pantalla.</p></div></header>`);
-        login('signin');
-        return;
-      }
-      await dashboard();
+      if (error || !data.user) openSignIn();
+      else await dashboard();
     } catch (error) {
       open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>${esc(error.message)}</p>`);
     }
+  };
+  async function accountHome() {
+    setView('account');
+    await ensureAccountScreen();
   }
   async function dashboard() {
     try {
@@ -688,6 +699,8 @@ export function bootPetCity() {
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
   syncViewFromHash();
   bindLoginNav();
+  const hashSlug = (location.hash || '').replace(/^#\/?/, '').split('/')[0].toLowerCase();
+  if (hashSlug === 'cuenta') void ensureAccountScreen();
   document.querySelector('#become')?.addEventListener('click', event => {
     getClient().auth.getUser().then(({ data }) => {
       if (data.user) {
