@@ -100,6 +100,16 @@ html .community-composer{background:var(--pc-soft);border:1px solid var(--pc-lin
 html .community-example{background:var(--pc-soft);color:#555;font-weight:500}
 html .community-meta{color:var(--pc-muted)}
 footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px}
+.badge-verified{display:inline-block;background:var(--pc-accent-soft);color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;margin-bottom:8px}
+.card-sitter{position:relative}
+.empty-state{color:var(--pc-muted);padding:24px;text-align:center;border:1px dashed var(--pc-line);border-radius:16px}
+.service-timeline{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.timeline-step{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--pc-line);color:var(--pc-muted)}
+.timeline-step.done{background:var(--pc-accent-soft);border-color:#b9e9db;color:#155b51;font-weight:600}
+body.demo-mode #guest-main .intro .fine::after{content:' · Modo demo activo'}
+body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
+#real-map,#real-offers{margin-bottom:24px}
+.profile-gallery img{display:block}
 @media(max-width:1000px){.mapwrap{top:0}}
 @media(max-width:800px){.top{height:70px}.topnav{background:#fff;border-color:var(--pc-line);border-radius:18px;box-shadow:0 8px 24px #00000012}.topnav .navpill{border-color:transparent!important}.topnav button:hover{background:var(--pc-soft)}}
 @media(max-width:650px){main{padding-top:24px}.searchbar{border-radius:22px;padding:8px}.field{padding:9px 11px}.searchbtn{border-radius:16px}.chip{padding:9px 13px}.modal{padding:22px 18px;border-radius:22px}.card{gap:12px;padding:11px}.brand{font-size:24px}.primary,.secondary,.dash-call{padding:10px 15px}.profile-actions{flex-wrap:wrap}}

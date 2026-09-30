@@ -12,7 +12,9 @@
    - Si necesitás que el sitio antiguo siga confirmando emails, conservar también https://petcity.thrilogia.chatgpt.site/**.
 6. Solicitar un email de confirmación nuevo y comprobar el retorno. No probar solamente con enlaces antiguos: pueden tener la URL anterior o haber expirado.
 
-La versión actual utiliza una clave publicable en el frontend: no requiere secretos de Vercel para abrirse. Los pagos requerirán backend y secretos adicionales cuando se implementen. Nunca incluir credenciales privadas en public/.
+La versión actual utiliza una clave publicable en el frontend: no requiere secretos de Vercel para abrirse. Los pagos usan `api/mp/*` — configurar variables según [PAYMENTS.md](PAYMENTS.md). Nunca incluir credenciales privadas en public/.
+
+Repo de referencia: `https://github.com/thrilogia-ux/petcity`. Tras cada push, Vercel redeploya automáticamente.
 
 ## Opción CLI
 
