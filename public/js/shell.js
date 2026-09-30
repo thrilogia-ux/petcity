@@ -69,6 +69,7 @@ const hashMap = { shop: 'shop', tienda: 'shop', comunidad: 'community', communit
 export function syncViewFromHash() {
   const raw = (location.hash || '').replace(/^#\/?/, '').split('/')[0].toLowerCase();
   if (hashMap[raw]) setView(hashMap[raw], false);
+  else if (!raw && document.body.classList.contains('app-mode')) setView('home', false);
 }
 
 export function setView(name, pushHash = true) {

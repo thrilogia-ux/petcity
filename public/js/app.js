@@ -8,7 +8,6 @@ export function bootPetCity() {
   initShell();
   let ensureAccountScreen = async () => {};
   onPetCityViewChange(name => {
-    if (name === 'account') void ensureAccountScreen();
     if (name === 'community') community();
     if (name === 'shop') shopPage();
   });
@@ -70,7 +69,7 @@ export function bootPetCity() {
   }
 
   function openSignIn() {
-    setView('account');
+    setView('account', location.hash.replace(/^#\/?/, '').split('/')[0].toLowerCase() !== 'cuenta');
     fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Ingresá o creá tu cuenta</h2><p class="fine">Completá email y contraseña en el formulario.</p></div></header>`);
     login('signin');
   }
@@ -125,17 +124,21 @@ export function bootPetCity() {
   };
   window.__petcitySignIn = openSignIn;
   bindLoginNav();
+  let accountScreenBusy = false;
   ensureAccountScreen = async () => {
+    if (accountScreenBusy) return;
+    accountScreenBusy = true;
     try {
       const { data, error } = await getClient().auth.getUser();
       if (error || !data.user) openSignIn();
       else await dashboard();
     } catch (error) {
       open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>${esc(error.message)}</p>`);
+    } finally {
+      accountScreenBusy = false;
     }
   };
   async function accountHome() {
-    setView('account');
     await ensureAccountScreen();
   }
   async function dashboard() {
@@ -703,6 +706,11 @@ export function bootPetCity() {
   bindLoginNav();
   const hashSlug = (location.hash || '').replace(/^#\/?/, '').split('/')[0].toLowerCase();
   if (hashSlug === 'cuenta') void ensureAccountScreen();
+  window.addEventListener('hashchange', () => {
+    if ((location.hash || '').replace(/^#\/?/, '').split('/')[0].toLowerCase() === 'cuenta') {
+      void ensureAccountScreen();
+    }
+  });
   document.querySelector('#become')?.addEventListener('click', event => {
     getClient().auth.getUser().then(({ data }) => {
       if (data.user) {
