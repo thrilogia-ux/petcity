@@ -796,9 +796,9 @@ export function bootPetCity() {
           ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
           <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
           <div class="cardfoot cardfoot-verified">
-            <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
-            <div class="card-sitter-actions">
-              <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
+            <button type="button" class="secondary card-btn-profile" data-view-offer="${esc(o.id)}">Ver perfil</button>
+            <div class="cardfoot-price-col">
+              <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
               <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
             </div>
           </div>
