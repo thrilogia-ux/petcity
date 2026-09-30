@@ -53,6 +53,17 @@ export function bootPetCity() {
     nav.querySelector('[data-go-community]')?.addEventListener('click', () => { setView('community'); community(); });
     nav.querySelector('#sidebar-admin')?.addEventListener('click', moderation);
   }
+  function bindLoginNav() {
+    const btn = document.querySelector('#login-nav');
+    if (!btn || btn.dataset.petcityLoginBound) return;
+    btn.dataset.petcityLoginBound = '1';
+    btn.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void accountHome();
+    }, true);
+  }
+
   const login = (mode = 'signin') => {
     open(`<div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">${mode === 'signup' ? 'Crear cuenta' : 'Ingresar a tu cuenta'}</h2>
       <p>Tus mascotas y postulaciones quedarán guardadas en tu cuenta.</p>
@@ -101,12 +112,20 @@ export function bootPetCity() {
       finally { button.disabled = false; }
     };
   };
+  bindLoginNav();
   async function accountHome() {
     try {
       const { data, error } = await getClient().auth.getUser();
-      if (error || !data.user) return login();
+      if (error || !data.user) {
+        setView('account');
+        fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Ingresá o creá tu cuenta</h2><p class="fine">Se abre el formulario en esta pantalla.</p></div></header>`);
+        login('signin');
+        return;
+      }
       await dashboard();
-    } catch (error) { open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>${esc(error.message)}</p>`); }
+    } catch (error) {
+      open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>${esc(error.message)}</p>`);
+    }
   }
   async function dashboard() {
     try {
@@ -577,7 +596,8 @@ export function bootPetCity() {
   }
   let realMapLayer;
   async function renderRealMap() {
-    const host=document.querySelector('#real-map');if(!host)return;
+    const host = document.querySelector('#approved-offers-map');
+    if (!host) return;
     const {data,error}=await getClient().rpc('petcity_list_approved_offers_map');
     if(error||!data?.length){host.innerHTML='<p class="fine">Mapa disponible cuando los cuidadores carguen ubicación (migración 010).</p>';return;}
     host.innerHTML='<div id="real-map-canvas" class="mapwrap" style="height:320px"></div>';
@@ -594,10 +614,13 @@ export function bootPetCity() {
   offersSection.id='real-offers';
   offersSection.hidden=true;
   const mapSection=document.createElement('section');
-  mapSection.id='real-map';
-  mapSection.hidden=true;
-  document.querySelector('.categories').after(mapSection);
-  document.querySelector('.categories').after(offersSection);
+  mapSection.id = 'approved-offers-map';
+  mapSection.hidden = true;
+  const categoriesEl = document.querySelector('.categories');
+  if (categoriesEl) {
+    categoriesEl.after(mapSection);
+    categoriesEl.after(offersSection);
+  }
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
@@ -653,14 +676,18 @@ export function bootPetCity() {
     shopPage();
   }, true);
   document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(renderRealOffers,0)));
-  document.querySelector('#search').addEventListener('submit',event=>{if(realOffers.length){event.preventDefault();event.stopImmediatePropagation();searchedPlace=document.querySelector('#place').value.trim().split(',')[0].toLowerCase();renderRealOffers();}},true);
+  document.querySelector('#search')?.addEventListener('submit', event => {
+    if (realOffers.length) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      searchedPlace = document.querySelector('#place').value.trim().split(',')[0].toLowerCase();
+      renderRealOffers();
+    }
+  }, true);
   refreshRealOffers();
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
   syncViewFromHash();
-  document.querySelector('#login-nav').addEventListener('click', event => {
-    event.stopImmediatePropagation();
-    setTimeout(accountHome, 0);
-  }, true);
+  bindLoginNav();
   document.querySelector('#become')?.addEventListener('click', event => {
     getClient().auth.getUser().then(({ data }) => {
       if (data.user) {

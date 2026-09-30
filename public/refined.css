@@ -66,6 +66,8 @@ h1{font-size:clamp(28px,3vw,38px);line-height:1.2;letter-spacing:-1.1px}
 .feature:hover{background:var(--pc-soft);border-color:#ccc}
 .feature strong{font-size:15px}
 .feature-icon{background:var(--pc-soft);font-size:23px;border-radius:12px}
+.overlay{z-index:40;position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:18px}
+.overlay.open{display:flex}
 .overlay{background:#00000066;backdrop-filter:blur(3px)}
 .modal{border:1px solid #eee;border-radius:24px;box-shadow:0 24px 80px #00000030;padding:30px}
 .modal h2{font-size:24px;font-weight:600}
