@@ -103,7 +103,13 @@ html .community-example{background:var(--pc-soft);color:#555;font-weight:500}
 html .community-meta{color:var(--pc-muted)}
 footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px}
 .badge-verified{display:inline-block;background:var(--pc-accent-soft);color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;margin-bottom:8px}
-.card-sitter{position:relative}
+.card-sitter{position:relative;display:flex;flex-direction:column;grid-template-columns:unset;min-width:0;padding:22px;align-items:stretch}
+.card-sitter h3{margin:6px 0 0;font-size:20px;line-height:1.25}
+.card-sitter-bio{margin:10px 0 0;color:var(--pc-muted);font-size:14px;line-height:1.5;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.card-sitter-price{margin:12px 0 0;font-size:15px}
+.card-sitter-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.card-sitter-actions .primary,.card-sitter-actions .secondary{width:auto;flex:1 1 160px;margin:0}
+#real-offers .real-offer-cards .card-sitter{width:100%;max-width:100%}
 .empty-state{color:var(--pc-muted);padding:24px;text-align:center;border:1px dashed var(--pc-line);border-radius:16px}
 .service-timeline{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
 .timeline-step{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--pc-line);color:var(--pc-muted)}
@@ -121,7 +127,8 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
-#real-offers .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+#real-offers .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:18px;max-width:100%;overflow:hidden}
+#real-offers .results-head{margin-bottom:16px}
 body.app-mode main#guest-main{display:none}
 #petcity-app{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,48px) 48px}
 

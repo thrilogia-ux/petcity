@@ -693,10 +693,17 @@ export function bootPetCity() {
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
     const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace)));
     offersSection.innerHTML=`<div class="results-head"><div><div class="eyebrow">OFERTAS APROBADAS</div><h2>Cuidadores reales · ${shown.length}</h2></div></div>
-      <div class="cards">${shown.length?shown.map(o=>`<article class="card card-sitter" style="padding:22px"><span class="badge-verified">Verificado</span><div class="eyebrow">${esc(serviceLabels[o.service])} · ${esc(o.city)}</div>
-        <h3>${esc(o.public_name)}</h3><p>${esc(o.bio)}</p><strong>Desde $${Number(o.price_ars).toLocaleString('es-AR')} / ${esc(o.unit)}</strong><br>
-        <button class="secondary" data-view-offer="${esc(o.id)}" style="margin-top:14px">Ver perfil</button>
-        <button class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button></article>`).join(''):'<p class="empty-state">No hay ofertas aprobadas con esos filtros.</p>'}</div>
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter">
+        <span class="badge-verified">Verificado</span>
+        <div class="eyebrow">${esc(serviceLabels[o.service])} · ${esc(o.city)}</div>
+        <h3>${esc(o.public_name)}</h3>
+        <p class="card-sitter-bio">${esc(o.bio)}</p>
+        <p class="card-sitter-price">Desde <strong>$${Number(o.price_ars).toLocaleString('es-AR')}</strong> / ${esc(o.unit)}</p>
+        <div class="card-sitter-actions">
+          <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
+          <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+        </div>
+      </article>`).join('') : '<p class="empty-state">No hay ofertas aprobadas con esos filtros.</p>'}</div>
       <p class="fine">${paymentsEnabled?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
