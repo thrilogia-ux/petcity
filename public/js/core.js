@@ -9,6 +9,40 @@ export const serviceLabels = {
   vacaciones: 'Vacaciones',
 };
 
+const serviceIconMap = {
+  paseo: '🐕',
+  cuidado_en_casa: '⌂',
+  alojamiento: '☾',
+  vacaciones: '☀',
+  Paseos: '🐕',
+  'Cuidado en casa': '⌂',
+  Alojamiento: '☾',
+  Vacaciones: '☀',
+};
+
+export function serviceIcon(key) {
+  return serviceIconMap[key] || '🐾';
+}
+
+export function formatMapPrice(amount) {
+  return '$' + Number(amount).toLocaleString('es-AR');
+}
+
+export function buildMapPinHtml({ photoUrl, serviceKey, price, active = false }) {
+  const thumb = String(photoUrl ?? '').replace(/"/g, '&quot;');
+  return `<div class="map-pin-chip${active ? ' is-active' : ''}"><img class="map-pin-thumb" src="${thumb}" alt=""><span class="map-pin-svc" aria-hidden="true">${serviceIcon(serviceKey)}</span><span class="map-pin-price">${esc(formatMapPrice(price))}</span></div>`;
+}
+
+export function createMapPinIcon(L, options) {
+  if (!L) return null;
+  return L.divIcon({
+    className: 'pet-map-icon',
+    html: buildMapPinHtml(options),
+    iconSize: [142, 52],
+    iconAnchor: [71, 52],
+  });
+}
+
 export const stateLabels = {
   draft: 'Borrador',
   pending: 'Pendiente',

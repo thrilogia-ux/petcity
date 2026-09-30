@@ -1,6 +1,7 @@
 import {
   paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
   openModal as open, closeModal, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
+  createMapPinIcon, formatMapPrice,
 } from './core.js';
 import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './shell.js';
 
@@ -689,7 +690,8 @@ export function bootPetCity() {
   async function renderRealMap() {
     const layer = window.petcityRealOffersLayer;
     const map = window.petcityCityMap;
-    if (!layer || !map || !window.L) {
+    const L = window.L;
+    if (!layer || !map || !L) {
       if (!realMapPending) {
         realMapPending = true;
         window.addEventListener('petcity-map-ready', () => { realMapPending = false; renderRealMap(); }, { once: true });
@@ -700,28 +702,40 @@ export function bootPetCity() {
     layer.clearLayers();
     const { data, error } = await getClient().rpc('petcity_list_approved_offers_map');
     if (error || !data?.length) return;
-    const verifiedIcon = L.divIcon({
-      className: 'pet-map-icon',
-      html: '<span class="pet-map-pin active" style="background:#173e3a">✓</span>',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-    });
-    const bounds = [];
-    data.forEach(o => {
-      if (o.lat == null || o.lng == null) return;
-      const pos = [o.lat, o.lng];
-      bounds.push(pos);
-      L.marker(pos, { icon: verifiedIcon, title: o.public_name }).addTo(layer)
-        .bindPopup(`<strong>${esc(o.public_name)}</strong><br>${esc(serviceLabels[o.service] || o.service)}<br>$${Number(o.price_ars).toLocaleString('es-AR')}`);
-    });
-    if (bounds.length) {
-      setTimeout(() => map.invalidateSize(), 50);
+    const offersById = Object.fromEntries(realOffers.map(o => [o.id, o]));
+    for (const row of data) {
+      if (row.lat == null || row.lng == null) continue;
+      const meta = offersById[row.offer_id] || {};
+      const photoUrl = meta.photo_path
+        ? await signedPhoto(meta.photo_path)
+        : sitterCardPhotoPlaceholder(row.public_name || meta.public_name);
+      const icon = createMapPinIcon(L, {
+        photoUrl: photoUrl || sitterCardPhotoPlaceholder(row.public_name),
+        serviceKey: row.service,
+        price: row.price_ars,
+        active: false,
+      });
+      if (!icon) continue;
+      const pos = [row.lat, row.lng];
+      const label = esc(row.public_name || meta.public_name || 'Cuidador');
+      L.marker(pos, { icon, title: label }).addTo(layer)
+        .bindPopup(`<strong>${label}</strong><br>${esc(serviceLabels[row.service] || row.service)} · ${esc(formatMapPrice(row.price_ars))}`)
+        .on('click', () => publicSitterProfile(row.offer_id));
     }
+    setTimeout(() => map.invalidateSize(), 50);
   }
   const demoMode=new URLSearchParams(location.search).has('demo');
   if(demoMode)document.body.classList.add('demo-mode');
   let realOffers=[];
   let searchedPlace='';
+  const REAL_SAVED_KEY = 'petcity-saved-offers';
+  const realSavedOffers = new Set(JSON.parse(localStorage.getItem(REAL_SAVED_KEY) || '[]'));
+  function persistRealSaved() {
+    localStorage.setItem(REAL_SAVED_KEY, JSON.stringify([...realSavedOffers]));
+    window.petcityDemoRender?.();
+  }
+  window.petcityBuildLeafletMapPin = opts => createMapPinIcon(window.L, opts);
+  window.petcityRealSavedCount = () => realSavedOffers.size;
   const offersSection=document.createElement('div');
   offersSection.id='real-offers';
   offersSection.hidden=true;
@@ -743,7 +757,8 @@ export function bootPetCity() {
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
-    const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace)));
+    const savedOnly = document.querySelector('#saved-toggle')?.getAttribute('aria-pressed') === 'true';
+    const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace))&&(!savedOnly||realSavedOffers.has(o.id)));
     const serviceLabel = o => esc(serviceLabels[o.service] || o.service);
     offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} cuidador${shown.length===1?'':'es'} real${shown.length===1?'':'es'}</h3></div>
       <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter-real">
@@ -755,7 +770,10 @@ export function bootPetCity() {
           ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
           <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
           <div class="cardfoot cardfoot-verified">
-            <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
+            <div class="cardfoot-top">
+              <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
+              <button type="button" class="save-caregiver" data-save-offer="${esc(o.id)}" aria-label="${realSavedOffers.has(o.id) ? 'Quitar de guardados' : 'Guardar cuidador'}">${realSavedOffers.has(o.id) ? '♥ Guardado' : '♡ Guardar'}</button>
+            </div>
             <div class="card-sitter-actions">
               <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
               <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
@@ -766,6 +784,16 @@ export function bootPetCity() {
       <p class="fine">${paymentsEnabled?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
+    offersSection.querySelectorAll('[data-save-offer]').forEach(button => {
+      button.onclick = event => {
+        event.stopPropagation();
+        const id = button.dataset.saveOffer;
+        if (realSavedOffers.has(id)) realSavedOffers.delete(id);
+        else realSavedOffers.add(id);
+        persistRealSaved();
+        renderRealOffers();
+      };
+    });
     hydrateRealOfferPortraits(offersSection);
   }
   async function refreshRealOffers() {
@@ -813,6 +841,7 @@ export function bootPetCity() {
     setView('shop');
   }, true);
   document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(renderRealOffers,0)));
+  document.querySelector('#saved-toggle')?.addEventListener('click', () => setTimeout(renderRealOffers, 0));
   document.querySelector('#search')?.addEventListener('submit', event => {
     if (realOffers.length) {
       event.preventDefault();
@@ -822,6 +851,7 @@ export function bootPetCity() {
     }
   }, true);
   refreshRealOffers();
+  window.petcityDemoRender?.();
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
   syncViewFromHash();
   bindLoginNav();
