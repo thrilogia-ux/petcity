@@ -833,7 +833,7 @@ export function bootPetCity() {
           </div>
           <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
           <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel(o)}</div>
-          ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
+          ${o.bio ? `<div class="card-bio-wrap"><p class="description card-bio-text">${esc(o.bio)}</p><button type="button" class="card-read-more" data-view-offer="${esc(o.id)}">Leer más</button></div>` : ''}
           <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
           <div class="cardfoot cardfoot-verified">
             <div class="cardfoot-price-col">

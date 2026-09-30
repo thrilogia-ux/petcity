@@ -114,8 +114,12 @@ footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px
 .card-sitter-actions .primary,.card-sitter-actions .secondary{width:auto;flex:1 1 140px;margin:0;font-size:13px;padding:9px 12px}
 #real-offers .card-sitter-real{display:grid;grid-template-columns:126px 1fr;gap:16px;align-items:stretch;cursor:default;padding:12px;width:100%;max-width:100%}
 #real-offers .card-sitter-real .portrait{width:126px;height:142px;object-fit:cover;background:#d4e2d7}
+#real-offers .card-sitter-real .cardbody{min-width:0;overflow:hidden}
 #real-offers .card-sitter-real .badge-verified{margin-bottom:4px}
-#real-offers .card-sitter-real .description{margin:8px 0 10px;-webkit-line-clamp:2}
+#real-offers .card-sitter-real .card-bio-wrap{margin:8px 0 10px;max-width:100%}
+#real-offers .card-sitter-real .card-bio-text{margin:0;font-size:14px;line-height:1.45;color:var(--pc-muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;word-break:break-word;overflow-wrap:anywhere}
+#real-offers .card-sitter-real .card-read-more{margin:6px 0 0;padding:0;border:0;background:none;color:var(--pc-accent);font-size:13px;font-weight:600;cursor:pointer;text-align:left}
+#real-offers .card-sitter-real .card-read-more:hover{text-decoration:underline;color:#11594f}
 #real-offers .card-sitter-real .cardfoot-verified{display:flex;flex-direction:row;justify-content:flex-end;margin-top:8px}
 #real-offers .card-sitter-real .cardfoot-price-col{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0;margin-left:auto;width:auto;max-width:100%}
 #real-offers .card-sitter-real .price-verified{font-size:20.4px;font-weight:700;line-height:1.2;text-align:right}
