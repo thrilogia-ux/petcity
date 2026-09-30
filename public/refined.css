@@ -114,3 +114,87 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 @media(max-width:800px){.top{height:70px}.topnav{background:#fff;border-color:var(--pc-line);border-radius:18px;box-shadow:0 8px 24px #00000012}.topnav .navpill{border-color:transparent!important}.topnav button:hover{background:var(--pc-soft)}}
 @media(max-width:650px){main{padding-top:24px}.searchbar{border-radius:22px;padding:8px}.field{padding:9px 11px}.searchbtn{border-radius:16px}.chip{padding:9px 13px}.modal{padding:22px 18px;border-radius:22px}.card{gap:12px;padding:11px}.brand{font-size:24px}.primary,.secondary,.dash-call{padding:10px 15px}.profile-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){button,.card{transition:none}button:active:not(:disabled){transform:none}}
+
+/* —— Landing hero —— */
+#guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
+#guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
+#guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
+#real-offers .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+body.app-mode main#guest-main{display:none}
+#petcity-app{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,48px) 48px}
+
+/* —— App toolbar —— */
+.app-view{padding-top:8px}
+.app-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 0 24px;border-bottom:1px solid var(--pc-line);margin-bottom:24px}
+.app-title{font-size:clamp(22px,3vw,28px);margin:4px 0 0;font-weight:600}
+.app-back{flex-shrink:0}
+
+/* —— Account panel —— */
+.account-layout{display:grid;grid-template-columns:240px 1fr;gap:28px;align-items:start;padding-top:16px}
+.account-sidebar{position:sticky;top:96px;border:1px solid var(--pc-line);border-radius:20px;padding:20px 16px;background:var(--pc-soft)}
+.account-sidebar-eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--pc-muted);margin:0 0 12px}
+.account-sidebar-link{display:block;width:100%;text-align:left;border:0;background:transparent;padding:11px 12px;border-radius:12px;font-weight:600;color:var(--pc-ink);margin-bottom:4px}
+.account-sidebar-link:hover{background:#fff}
+.account-sidebar-link.active{background:#fff;border:1px solid var(--pc-line);color:var(--pc-accent)}
+.account-sidebar-out{width:100%;margin-top:16px}
+.account-panel-wrap{min-width:0}
+.account-panel{background:#fff;border:1px solid var(--pc-line);border-radius:22px;padding:clamp(20px,3vw,32px);min-height:420px}
+.account-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--pc-line)}
+.account-panel-head h2{margin:6px 0 0}
+.account-panel-body .dash-tile{border:1px solid var(--pc-line);padding:18px;margin:12px 0}
+.account-status-bar{min-height:1.25em;color:var(--pc-accent);font-size:14px;margin-top:12px}
+
+/* —— Shop e-commerce —— */
+.shop-layout{display:grid;grid-template-columns:1fr min(340px,100%);gap:28px;align-items:start}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.shop-product-card{border:1px solid var(--pc-line);border-radius:18px;overflow:hidden;background:#fff;display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s}
+.shop-product-card:hover{border-color:#ccc;box-shadow:0 8px 28px #0000000a}
+.shop-product-art{aspect-ratio:1;background:linear-gradient(145deg,var(--pc-accent-soft),#fff);display:grid;place-items:center;font-size:48px}
+.shop-product-body{padding:16px;display:flex;flex-direction:column;flex:1;gap:8px}
+.shop-product-body h3{margin:0;font-size:17px}
+.shop-product-body p{margin:0;font-size:14px;color:var(--pc-muted);flex:1;line-height:1.45}
+.shop-product-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+.shop-product-foot .primary{margin-left:auto;padding:9px 16px;min-height:40px}
+.shop-cart{position:sticky;top:96px;border:1px solid var(--pc-line);border-radius:20px;padding:22px;background:var(--pc-soft)}
+.shop-cart h2{margin:0 0 16px;font-size:18px}
+.shop-cart-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.shop-cart-list li{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:14px;padding-bottom:12px;border-bottom:1px solid var(--pc-line)}
+.shop-cart-total{display:flex;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--pc-line);font-size:16px}
+
+/* —— Comunidad estilo feed —— */
+.app-toolbar-community{margin-bottom:12px}
+.ig-stories{display:flex;gap:14px;padding:8px 0 20px;overflow-x:auto;border-bottom:1px solid var(--pc-line);margin-bottom:24px}
+.ig-story{text-align:center;min-width:72px}
+.ig-story-ring{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;border:2px solid var(--pc-accent);margin:0 auto 6px;background:#fff;font-size:22px}
+.ig-feed{max-width:520px;margin:0 auto;display:grid;gap:28px}
+.ig-post{background:#fff;border:1px solid var(--pc-line);border-radius:4px;overflow:hidden}
+.ig-post-demo{opacity:.92}
+.ig-post-head{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.ig-avatar{width:36px;height:36px;border-radius:50%;background:var(--pc-accent-soft);display:grid;place-items:center;font-weight:700;color:var(--pc-accent);font-size:14px}
+.ig-post-head strong{display:block;font-size:14px}
+.ig-post-head .fine{font-size:12px}
+.ig-post-media{aspect-ratio:1;background:var(--pc-soft);display:grid;place-items:center;color:var(--pc-muted);font-size:48px}
+.ig-post-media img{width:100%;height:100%;object-fit:cover;display:block}
+.ig-post-actions{display:flex;gap:8px;padding:10px 14px 0}
+.ig-icon-btn{border:0;background:transparent;font-weight:600;font-size:15px;padding:6px 8px;border-radius:8px;color:var(--pc-ink)}
+.ig-icon-btn:hover{background:var(--pc-soft)}
+.ig-caption{padding:8px 14px 12px;font-size:14px;line-height:1.5;margin:0}
+.ig-comment{padding:0 14px 6px;font-size:13px;color:var(--pc-muted);margin:0}
+.ig-comment-form{display:flex;gap:8px;padding:0 14px 14px;border-top:1px solid var(--pc-line);margin-top:8px;padding-top:12px}
+.ig-comment-form input{flex:1;border:0;border-bottom:1px solid var(--pc-line);border-radius:0;padding:8px 0;font-size:14px}
+.ig-comment-form input:focus{outline:none;border-color:var(--pc-accent)}
+.ig-send{border:0;background:transparent;color:var(--pc-accent);font-size:22px;font-weight:700;padding:0 8px}
+.ig-composer-wrap{max-width:520px;margin:0 auto 24px;padding:20px;border:1px solid var(--pc-line);border-radius:16px;background:var(--pc-soft)}
+.ig-composer .ig-upload span{display:inline-block;margin-bottom:8px;font-weight:600;font-size:14px}
+.ig-loading{text-align:center;padding:40px}
+
+@media(max-width:900px){
+  .account-layout{grid-template-columns:1fr}
+  .account-sidebar{position:static;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .account-sidebar-eyebrow{width:100%}
+  .account-sidebar-link{width:auto;margin:0}
+  .account-sidebar-out{width:auto;margin:0 0 0 auto}
+  .shop-layout{grid-template-columns:1fr}
+  .shop-cart{position:static}
+  #guest-main .intro{grid-template-columns:1fr}
+}

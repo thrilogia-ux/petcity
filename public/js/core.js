@@ -32,8 +32,9 @@ export function getClient() {
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 export function status(message) {
-  const node = document.querySelector('#account-status');
-  if (node) node.textContent = message;
+  document.querySelectorAll('#account-status, .account-status-bar, #community-page-status').forEach(node => {
+    if (node) node.textContent = message;
+  });
 }
 
 let serviceMessageTimer;
@@ -41,13 +42,20 @@ export function clearServiceMessageTimer() {
   if (serviceMessageTimer) clearInterval(serviceMessageTimer);
   serviceMessageTimer = null;
 }
-export function openModal(html) {
+export function openModal(html, { wide = true, community = false } = {}) {
   clearServiceMessageTimer();
   const modal = document.querySelector('.modal');
-  modal.classList.add('wide');
-  modal.classList.remove('community-wide');
+  modal.classList.toggle('wide', wide);
+  modal.classList.toggle('community-wide', community);
   document.querySelector('#modal-content').innerHTML = html;
   document.querySelector('#overlay').classList.add('open');
+}
+
+/** Contenido en panel de cuenta (sin popup). */
+export function fillAccountPanel(html) {
+  clearServiceMessageTimer();
+  const panel = document.querySelector('#account-panel');
+  if (panel) panel.innerHTML = html;
 }
 
 export function setServiceMessageTimer(fn) {

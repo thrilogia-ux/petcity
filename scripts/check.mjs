@@ -4,7 +4,7 @@ import { Script } from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-for (const file of ['public/account.js', 'public/js/core.js', 'public/js/app.js']) {
+for (const file of ['public/account.js', 'public/js/core.js', 'public/js/shell.js', 'public/js/app.js']) {
   execFileSync(process.execPath, ['--check', root + file]);
 }
 const html = readFileSync(root + 'public/index.html', 'utf8');
@@ -15,7 +15,7 @@ for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     count++;
   }
 }
-for (const path of ['account.js', 'js/core.js', 'js/app.js', 'refined.css', 'demo.html', 'demo-cat.webp', 'demo-park.webp', 'demo-walk.webp']) {
+for (const path of ['account.js', 'js/core.js', 'js/shell.js', 'js/app.js', 'refined.css', 'demo.html', 'demo-cat.webp', 'demo-park.webp', 'demo-walk.webp']) {
   if (!existsSync(root + 'public/' + path)) throw Error('Missing asset: ' + path);
 }
 JSON.parse(readFileSync(root + 'vercel.json', 'utf8'));

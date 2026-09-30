@@ -1,9 +1,15 @@
 import {
   paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
-  openModal as open, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
+  openModal as open, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
 } from './core.js';
+import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './shell.js';
 
 export function bootPetCity() {
+  initShell();
+  onPetCityViewChange(name => {
+    if (name === 'community') community();
+    if (name === 'shop') shopPage();
+  });
   let marketplaceReady = false;
   let enhancedReady = false;
   let accountTab = 'pets';
@@ -22,13 +28,31 @@ export function bootPetCity() {
   document.querySelector('#login-nav').before(accountNav);
   accountNav.before(careNav);
   careNav.before(communityNav);
-  communityNav.onclick=community;
+  communityNav.onclick = () => { setView('community'); community(); };
   accountNav.onclick = () => { accountTab = 'pets'; accountHome(); };
   careNav.onclick = () => { accountTab = 'services'; accountHome(); };
   const modal = document.querySelector('#modal-content');
-  const communityStyle=document.createElement('style');
-  communityStyle.textContent=`.modal.community-wide{width:min(1240px,calc(100vw - 28px))}.community-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.community-head h2{margin:3px 0}.community-head .primary{width:auto}.community-grid{columns:4 190px;column-gap:14px}.community-card{break-inside:avoid;border:1px solid #e3eae1;border-radius:18px;overflow:hidden;background:#fff;margin:0 0 14px;box-shadow:0 6px 24px rgba(22,49,39,.06)}.community-photo{min-height:140px;background:#e9f0e8;display:grid;place-items:center;color:#527163}.community-photo img{display:block;width:100%;height:auto}.community-copy{padding:13px}.community-copy p{margin:5px 0 10px;white-space:pre-wrap}.community-meta{font-size:12px;color:#60756a}.community-example{display:inline-block;background:#eaf2e3;color:#245142;border-radius:50px;padding:4px 8px;font-size:12px;font-weight:800;margin-bottom:6px}.community-actions{display:flex;gap:7px;flex-wrap:wrap}.community-actions button{padding:7px 10px;font-size:13px}.community-comment{border-left:2px solid #dfe7df;padding-left:9px;font-size:13px}.community-composer{background:#f4f8f2;border-radius:16px;padding:16px;margin:0 0 18px}.community-composer[hidden]{display:none}@media(max-width:600px){.community-grid{columns:2 145px;column-gap:9px}.community-card{margin-bottom:9px}.community-copy{padding:10px}.community-head .primary{width:100%}}`;
-  document.head.append(communityStyle);
+
+  function renderAccountSidebar(isAdmin) {
+    const nav = document.getElementById('account-sidebar-nav');
+    if (!nav) return;
+    const items = [
+      ['pets', 'Mis mascotas'],
+      ['services', 'Mis cuidados'],
+      ['personal', 'Mis datos'],
+      ['sitter', 'Modo cuidador'],
+    ];
+    nav.innerHTML = items.map(([key, label]) =>
+      `<button type="button" class="account-sidebar-link${accountTab === key ? ' active' : ''}" data-account-tab="${key}">${label}</button>`
+    ).join('')
+      + `<button type="button" class="account-sidebar-link" data-go-community>Comunidad</button>`
+      + (isAdmin ? '<button type="button" class="account-sidebar-link" id="sidebar-admin">Moderación admin</button>' : '');
+    nav.querySelectorAll('[data-account-tab]').forEach(btn => {
+      btn.onclick = () => { accountTab = btn.dataset.accountTab; dashboard(); };
+    });
+    nav.querySelector('[data-go-community]')?.addEventListener('click', () => { setView('community'); community(); });
+    nav.querySelector('#sidebar-admin')?.addEventListener('click', moderation);
+  }
   const login = (mode = 'signin') => {
     open(`<div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">${mode === 'signup' ? 'Crear cuenta' : 'Ingresar a tu cuenta'}</h2>
       <p>Tus mascotas y postulaciones quedarán guardadas en tu cuenta.</p>
@@ -100,8 +124,8 @@ export function bootPetCity() {
       enhancedReady = Object.hasOwn(profile,'phone');
       marketplaceReady = !bookingsError;
       const bookingList = bookings || [];
-      const tabs = [['pets','Mis mascotas'],['services','Mis cuidados'],['personal','Mis datos'],['sitter','Quiero cuidar'],['community','Comunidad']];
-      const nav = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0">${tabs.map(([key,label])=>`<button class="${accountTab===key?'primary':'secondary'}" data-account-tab="${key}">${label}</button>`).join('')}</div>`;
+      setView('account');
+      renderAccountSidebar(isAdmin);
       const petCards = pets.length ? pets.map(p=>`<div class="dash-tile" style="margin:10px 0"><div style="display:flex;align-items:center;gap:16px"><span data-pet-photo="${esc(p.photo_path||'')}" style="width:72px;height:72px;border-radius:18px;background:#e8f1e9;display:grid;place-items:center;overflow:hidden">🐾</span><div><h3>${esc(p.name)}</h3><p>${esc(p.species)}${p.breed?' · '+esc(p.breed):''}${p.size?' · '+esc(p.size):''}${p.weight_kg?' · '+esc(p.weight_kg)+' kg':''}</p></div></div><p>${esc(p.care_notes||'Sin indicaciones cargadas.')}</p><button class="dash-call" data-edit-pet="${esc(p.id)}">Ver y editar ficha</button></div>`).join('') : '<p>Todavía no cargaste mascotas.</p>';
       const serviceCards = bookingsError ? '<p>Estamos habilitando las solicitudes.</p>' : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : '<p>Todavía no tenés servicios. Encontrá un cuidador en las ofertas aprobadas.</p>';
       const contents = {
@@ -111,10 +135,9 @@ export function bootPetCity() {
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
           <button class="dash-call" id="real-application">${application ? 'Ver postulación' : 'Empezar postulación'}</button>
           ${application?.status === 'approved' ? '<button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
-        community: '<h3>Comunidad PetCity</h3><p>Fotos, historias y comentarios de dueños y cuidadores. Cada publicación se revisa antes de aparecer.</p><button class="primary" id="open-community">Explorar comunidad</button>'
+        community: ''
       };
-      open(`<div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2>${nav}<div>${contents[accountTab]||contents.pets}</div>${isAdmin ? '<p><button class="secondary" id="real-moderation">Revisar postulaciones y comunidad</button></p>' : ''}<p id="account-status" role="status" aria-live="polite"></p><button class="secondary" id="real-signout">Cerrar sesión</button>`);
-      document.querySelectorAll('[data-account-tab]').forEach(button=>button.onclick=()=>{accountTab=button.dataset.accountTab;dashboard();});
+      fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
       document.querySelector('#add-real-pet')?.addEventListener('click',petForm);
       document.querySelectorAll('[data-edit-pet]').forEach(button=>button.onclick=()=>petForm(pets.find(p=>p.id===button.dataset.editPet)));
       document.querySelectorAll('[data-pet-photo]').forEach(async node=>{if(node.dataset.petPhoto){const url=await signedPhoto(node.dataset.petPhoto);if(url)node.innerHTML=`<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;}});
@@ -124,8 +147,7 @@ export function bootPetCity() {
       document.querySelector('#manage-offers')?.addEventListener('click',()=>sitterOffersManager(application));
       document.querySelector('#manage-availability')?.addEventListener('click',()=>sitterAvailabilityForm(application));
       document.querySelector('#upload-offer-photo')?.addEventListener('click',()=>sitterPhotoUpload(application));
-      document.querySelector('#open-community')?.addEventListener('click',community);
-      if (isAdmin) document.querySelector('#real-moderation').onclick = moderation;
+      document.querySelector('#open-community')?.addEventListener('click', () => { setView('community'); community(); });
       document.querySelectorAll('[data-booking]').forEach(button=>button.onclick=async()=>{
         button.disabled=true;
         const result=button.dataset.decision==='cancelled'
@@ -292,34 +314,89 @@ export function bootPetCity() {
     },8000));
   }
   async function community() {
-    const api=getClient();
-    const {data:auth}=await api.auth.getUser();
-    const cutoff=new Date(Date.now()-30*24*60*60*1000).toISOString();
-    const [{data:posts,error},{data:likes},{data:comments}]=await Promise.all([
-      api.from('community_posts').select('*').eq('status','approved').gte('created_at',cutoff).order('created_at',{ascending:false}).limit(60),
+    setView('community');
+    const api = getClient();
+    const { data: auth } = await api.auth.getUser();
+    const composeBtn = document.getElementById('community-compose-btn');
+    const composerWrap = document.getElementById('community-composer-wrap');
+    const feed = document.getElementById('community-feed');
+    if (!feed) return;
+    if (composeBtn) {
+      composeBtn.hidden = !auth.user;
+      composeBtn.onclick = () => {
+        composerWrap.hidden = !composerWrap.hidden;
+        if (!composerWrap.hidden) composerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      };
+    }
+    if (auth.user) {
+      composerWrap.innerHTML = `<form id="post-form" class="ig-composer account-form"><label class="ig-upload"><span>Seleccionar foto</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><label>Contá la historia<textarea name="caption" maxlength="1500" required placeholder="¿Qué pasó hoy con tu mascota?"></textarea></label><button class="primary" type="submit">Enviar para revisión</button><p class="fine">Visible 30 días tras aprobación.</p></form>`;
+      composerWrap.hidden = true;
+    } else {
+      composerWrap.innerHTML = `<p class="fine">Ingresá para publicar historias reales.</p><button type="button" class="primary" id="community-login">Ingresar</button>`;
+      composerWrap.hidden = false;
+      composerWrap.querySelector('#community-login')?.addEventListener('click', login);
+    }
+    feed.innerHTML = '<p class="fine ig-loading">Cargando historias…</p>';
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [{ data: posts, error }, { data: likes }, { data: comments }] = await Promise.all([
+      api.from('community_posts').select('*').eq('status', 'approved').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(60),
       api.from('community_likes').select('post_id,user_id'),
-      api.from('community_comments').select('id,post_id,body,status,created_at').order('created_at',{ascending:true}).limit(200)
+      api.from('community_comments').select('id,post_id,body,status,created_at').order('created_at', { ascending: true }).limit(200),
     ]);
-    if(error){open('<h2 id="dialog-title">Comunidad</h2><p>No pudimos cargar las historias en este momento.</p><button class="secondary" id="back-account">Volver</button>');document.querySelector('#back-account').onclick=auth.user?dashboard:()=>document.querySelector('#overlay').classList.remove('open');return;}
-    const cards=(posts||[]).map(p=>`<article id="post-${esc(p.id)}" class="community-card"><div class="community-photo" data-post-photo="${esc(p.photo_path||'')}">${p.photo_path?'Cargando foto…':'🐾'}</div><div class="community-copy"><div class="community-meta"><strong>${esc(p.author_name||'Miembro PetCity')}</strong> · ${esc(p.author_role||'Miembro')}<br>${new Date(p.created_at).toLocaleDateString('es-AR')}</div><p>${esc(p.caption)}</p><div class="community-actions"><button class="secondary" data-like="${esc(p.id)}" aria-label="Me gusta">♥ ${likes?.filter(l=>l.post_id===p.id).length||0}</button><button class="secondary" data-share="${esc(p.id)}">Compartir</button></div>${(comments||[]).filter(c=>c.post_id===p.id).map(c=>`<p class="community-comment">${esc(c.body)}${c.status!=='approved'?' · Pendiente':''}</p>`).join('')}${auth.user?`<form data-comment="${esc(p.id)}" class="account-form"><label>Comentar<input name="body" maxlength="500" required></label><button class="dash-call">Comentar</button></form>`:''}</div></article>`).join('');
-    const examples=[
-      {image:'demo-walk.webp',title:'Paseo de tarde',caption:'Un paseo tranquilo por el barrio y muchas paradas para olfatear.'},
-      {image:'demo-park.webp',title:'Descanso en el parque',caption:'Después de jugar, llegó el momento de tomar agua y descansar.'},
-      {image:'demo-cat.webp',title:'Siesta junto a la ventana',caption:'El rincón favorito de la casa para disfrutar el sol.'}
+    if (error) { feed.innerHTML = `<p class="fine">${esc(error.message)}</p>`; return; }
+    const igPost = p => {
+      const likeCount = likes?.filter(l => l.post_id === p.id).length || 0;
+      const postComments = (comments || []).filter(c => c.post_id === p.id && c.status === 'approved');
+      return `<article id="post-${esc(p.id)}" class="ig-post"><header class="ig-post-head"><span class="ig-avatar">${esc((p.author_name || 'P')[0])}</span><div><strong>${esc(p.author_name || 'Miembro PetCity')}</strong><span class="fine">${esc(p.author_role || 'Miembro')} · ${new Date(p.created_at).toLocaleDateString('es-AR')}</span></div></header><div class="ig-post-media" data-post-photo="${esc(p.photo_path || '')}">${p.photo_path ? '' : '🐾'}</div><div class="ig-post-actions"><button type="button" class="ig-icon-btn" data-like="${esc(p.id)}" aria-label="Me gusta">♥ ${likeCount}</button><button type="button" class="ig-icon-btn" data-share="${esc(p.id)}">↗</button></div><p class="ig-caption"><strong>${esc(p.author_name || 'Miembro')}</strong> ${esc(p.caption)}</p>${postComments.map(c => `<p class="ig-comment">${esc(c.body)}</p>`).join('')}${auth.user ? `<form data-comment="${esc(p.id)}" class="ig-comment-form"><input name="body" maxlength="500" required placeholder="Agregar comentario…"><button type="submit" class="ig-send" aria-label="Enviar">›</button></form>` : ''}</article>`;
+    };
+    const examples = [
+      { image: 'demo-walk.webp', title: 'Paseo de tarde', caption: 'Un paseo tranquilo por el barrio.' },
+      { image: 'demo-park.webp', title: 'Descanso en el parque', caption: 'Agua y siesta después de jugar.' },
+      { image: 'demo-cat.webp', title: 'Siesta junto a la ventana', caption: 'El rincón favorito al sol.' },
     ];
-    const demoCards=(posts||[]).length<3?examples.map(item=>`<article class="community-card"><div class="community-photo"><img src="/${item.image}" alt="${esc(item.title)}" loading="lazy"></div><div class="community-copy"><span class="community-example">Ejemplo · imagen ilustrativa</span><div class="community-meta">PetCity · simulación</div><p><strong>${esc(item.title)}</strong><br>${esc(item.caption)}</p></div></article>`).join(''):'';
-    open(`<div class="community-head"><div><div class="eyebrow">PETCITY · COMUNIDAD</div><h2 id="dialog-title">Historias de mascotas</h2><p>Historias reales aprobadas visibles durante 30 días · ejemplos identificados</p></div>${auth.user?'<button class="primary" id="show-post-form">+ Subir historia</button>':'<button class="primary" id="community-login">Ingresar para publicar</button>'}</div>${auth.user?'<div class="community-composer" id="community-composer" hidden><h3>Compartir una historia</h3><form id="post-form" class="account-form"><label>Foto<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><label>Contá la historia<textarea name="caption" maxlength="1500" required placeholder="¿Qué pasó hoy?"></textarea></label><button class="primary">Enviar para revisión</button></form><p class="fine">Se muestra tu nombre de perfil (o nombre público de cuidador). Se publica después de la revisión y deja de verse a los 30 días.</p></div>':''}<p id="account-status" role="status" aria-live="polite"></p><div class="community-grid">${cards}${demoCards}</div><button class="secondary" id="back-account" style="margin-top:16px">${auth.user?'Volver a mi perfil':'Cerrar'}</button>`);
-    document.querySelector('.modal').classList.add('community-wide');
-    document.querySelector('#back-account').onclick=auth.user?dashboard:()=>document.querySelector('#overlay').classList.remove('open');
-    document.querySelector('#show-post-form')?.addEventListener('click',()=>{const composer=document.querySelector('#community-composer');composer.hidden=!composer.hidden;if(!composer.hidden)composer.scrollIntoView({block:'nearest'});});
-    document.querySelector('#community-login')?.addEventListener('click',()=>login());
-    const sharedPost=new URLSearchParams(location.search).get('post');
-    if(sharedPost)document.getElementById(`post-${sharedPost}`)?.scrollIntoView({block:'center'});
-    document.querySelectorAll('[data-post-photo]').forEach(async node=>{if(!node.dataset.postPhoto)return;const url=await signedPhoto(node.dataset.postPhoto);node.innerHTML=url?`<img src="${esc(url)}" alt="Mascota compartida en PetCity">`:'Foto no disponible';});
-    document.querySelector('#post-form')?.addEventListener('submit',async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;try{const form=new FormData(event.target);const path=await uploadPhoto(form.get('photo'),'community');const {error:saveError}=await api.from('community_posts').insert({author_id:auth.user.id,caption:String(form.get('caption')).trim(),photo_path:path});if(saveError)throw saveError;community();}catch(e){status(e.message);button.disabled=false;}});
-    document.querySelectorAll('[data-like]').forEach(button=>button.onclick=async()=>{if(!auth.user)return login();const liked=likes?.some(l=>l.post_id===button.dataset.like&&l.user_id===auth.user.id);const q=liked?api.from('community_likes').delete().eq('post_id',button.dataset.like).eq('user_id',auth.user.id):api.from('community_likes').insert({post_id:button.dataset.like,user_id:auth.user.id});const {error:likeError}=await q;if(likeError)status(likeError.message);else community();});
-    document.querySelectorAll('[data-share]').forEach(button=>button.onclick=async()=>{const url=`${location.origin}/?post=${encodeURIComponent(button.dataset.share)}`;try{if(navigator.share)await navigator.share({title:'PetCity',url});else{await navigator.clipboard.writeText(url);status('Enlace copiado.');}}catch(e){if(e.name!=='AbortError')status('No se pudo compartir.');}});
-    document.querySelectorAll('[data-comment]').forEach(form=>form.onsubmit=async event=>{event.preventDefault();const body=String(new FormData(form).get('body')).trim();const {error:commentError}=await api.from('community_comments').insert({post_id:form.dataset.comment,author_id:auth.user.id,body});if(commentError)status(commentError.message);else community();});
+    const demoCards = (posts || []).length < 3 ? examples.map(item =>
+      `<article class="ig-post ig-post-demo"><header class="ig-post-head"><span class="ig-avatar">✦</span><div><strong>Ejemplo PetCity</strong><span class="community-example">Simulación</span></div></header><div class="ig-post-media"><img src="/${item.image}" alt="${esc(item.title)}" loading="lazy"></div><p class="ig-caption"><strong>${esc(item.title)}</strong> ${esc(item.caption)}</p></article>`
+    ).join('') : '';
+    feed.innerHTML = (posts || []).map(igPost).join('') + demoCards;
+    document.querySelectorAll('[data-post-photo]').forEach(async node => {
+      if (!node.dataset.postPhoto) return;
+      const url = await signedPhoto(node.dataset.postPhoto);
+      node.innerHTML = url ? `<img src="${esc(url)}" alt="Mascota en PetCity">` : 'Foto no disponible';
+    });
+    document.querySelector('#post-form')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = event.target.querySelector('button');
+      button.disabled = true;
+      try {
+        const form = new FormData(event.target);
+        const path = await uploadPhoto(form.get('photo'), 'community');
+        const { error: saveError } = await api.from('community_posts').insert({ author_id: auth.user.id, caption: String(form.get('caption')).trim(), photo_path: path });
+        if (saveError) throw saveError;
+        community();
+      } catch (e) { status(e.message); button.disabled = false; }
+    });
+    document.querySelectorAll('[data-like]').forEach(button => button.onclick = async () => {
+      if (!auth.user) return login();
+      const liked = likes?.some(l => l.post_id === button.dataset.like && l.user_id === auth.user.id);
+      const q = liked ? api.from('community_likes').delete().eq('post_id', button.dataset.like).eq('user_id', auth.user.id) : api.from('community_likes').insert({ post_id: button.dataset.like, user_id: auth.user.id });
+      const { error: likeError } = await q;
+      if (likeError) status(likeError.message); else community();
+    });
+    document.querySelectorAll('[data-share]').forEach(button => button.onclick = async () => {
+      const url = `${location.origin}/#/comunidad?post=${encodeURIComponent(button.dataset.share)}`;
+      try {
+        if (navigator.share) await navigator.share({ title: 'PetCity', url });
+        else { await navigator.clipboard.writeText(url); status('Enlace copiado.'); }
+      } catch (e) { if (e.name !== 'AbortError') status('No se pudo compartir.'); }
+    });
+    document.querySelectorAll('[data-comment]').forEach(form => form.onsubmit = async event => {
+      event.preventDefault();
+      const body = String(new FormData(form).get('body')).trim();
+      const { error: commentError } = await api.from('community_comments').insert({ post_id: form.dataset.comment, author_id: auth.user.id, body });
+      if (commentError) status(commentError.message); else community();
+    });
+    const sharedPost = new URLSearchParams(location.search).get('post');
+    if (sharedPost) document.getElementById(`post-${sharedPost}`)?.scrollIntoView({ block: 'center' });
   }
   async function applicationForm(existing) {
     if (!marketplaceReady) {open('<h2 id="dialog-title">Postulaciones en preparación</h2><p>Estamos terminando de habilitar ofertas y solicitudes reales.</p><button class="secondary" id="back-account">Volver</button>');document.querySelector('#back-account').onclick=dashboard;return;}
@@ -457,28 +534,46 @@ export function bootPetCity() {
     });
     setServiceMessageTimer(setInterval(()=>{if(!document.querySelector('#overlay').classList.contains('open')){clearServiceMessageTimer();clearInterval(poll);if(watchId)navigator.geolocation.clearWatch(watchId);}},3000));
   }
-  async function shopReal() {
-    const api=getClient();const {data:{user}}=await api.auth.getUser();
-    if(!user)return login();
-    const {data:products,error}=await api.from('shop_products').select('*').eq('active',true).order('name');
-    if(error){open(`<h2>Shop</h2><p>${esc(error.message)}</p>`);return;}
-    const {data:cartId}=await api.rpc('petcity_get_or_create_cart');
-    open(`<div class="eyebrow">SHOP PETCITY</div><h2 id="dialog-title">Insumos para mascotas</h2>
-      <div class="cards">${(products||[]).map(p=>`<article class="shop-item dash-tile"><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><strong>$${Number(p.price_ars).toLocaleString('es-AR')}</strong> · Stock: ${p.stock}
-        <button class="primary" data-add-product="${esc(p.id)}" data-price="${p.price_ars}">Agregar al carrito</button></article>`).join('')}</div>
-      <button class="secondary" id="view-cart">Ver mi carrito</button><p id="account-status" role="status"></p><button class="secondary" id="close-shop">Cerrar</button>`);
-    document.querySelector('#close-shop').onclick=()=>document.querySelector('#overlay').classList.remove('open');
-    document.querySelectorAll('[data-add-product]').forEach(btn=>btn.onclick=async()=>{
-      const {error:err}=await api.from('shop_order_items').upsert({order_id:cartId,product_id:btn.dataset.addProduct,quantity:1,unit_price_ars:Number(btn.dataset.price)},{onConflict:'order_id,product_id'});
-      if(err)status(err.message);else status('Producto agregado al carrito.');
+  let shopCartId = null;
+  async function refreshShopCart() {
+    const body = document.getElementById('shop-cart-body');
+    if (!body) return;
+    if (!shopCartId) {
+      body.innerHTML = '<p class="fine">Ingresá para guardar tu carrito.</p><button type="button" class="primary" id="shop-login">Ingresar</button>';
+      body.querySelector('#shop-login')?.addEventListener('click', login);
+      return;
+    }
+    const { data: items } = await getClient().from('shop_order_items').select('quantity,unit_price_ars,shop_products(name)').eq('order_id', shopCartId);
+    const total = (items || []).reduce((s, i) => s + i.quantity * i.unit_price_ars, 0);
+    body.innerHTML = items?.length
+      ? `<ul class="shop-cart-list">${items.map(i => `<li><span>${esc(i.shop_products.name)}</span><span>× ${i.quantity}</span><strong>$${(i.quantity * i.unit_price_ars).toLocaleString('es-AR')}</strong></li>`).join('')}</ul><div class="shop-cart-total"><span>Total</span><strong>$${total.toLocaleString('es-AR')}</strong></div><p class="fine">Checkout con Mercado Pago (próximamente).</p>`
+      : '<p class="fine">Tu carrito está vacío.</p>';
+    const btn = document.getElementById('shop-cart-btn');
+    if (btn) btn.textContent = `Carrito (${(items || []).reduce((s, i) => s + i.quantity, 0)})`;
+  }
+  async function shopPage() {
+    setView('shop');
+    const api = getClient();
+    const { data: { user } } = await api.auth.getUser();
+    const catalog = document.getElementById('shop-catalog');
+    if (!catalog) return;
+    catalog.innerHTML = '<p class="fine">Cargando productos…</p>';
+    const { data: products, error } = await api.from('shop_products').select('*').eq('active', true).order('name');
+    if (error) { catalog.innerHTML = `<p class="fine">${esc(error.message)}</p>`; return; }
+    catalog.innerHTML = (products || []).map(p => `<article class="shop-product-card" role="listitem"><div class="shop-product-art" aria-hidden="true">🛍</div><div class="shop-product-body"><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="shop-product-foot"><strong>$${Number(p.price_ars).toLocaleString('es-AR')}</strong><span class="fine">${p.stock} en stock</span><button type="button" class="primary" data-add-product="${esc(p.id)}" data-price="${p.price_ars}">Agregar</button></div></div></article>`).join('');
+    if (user) {
+      const { data: cartId } = await api.rpc('petcity_get_or_create_cart');
+      shopCartId = cartId;
+    } else shopCartId = null;
+    await refreshShopCart();
+    const cartBtn = document.getElementById('shop-cart-btn');
+    if (cartBtn) cartBtn.onclick = () => document.getElementById('shop-cart-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    catalog.querySelectorAll('[data-add-product]').forEach(btn => btn.onclick = async () => {
+      if (!user) return login();
+      const { error: err } = await api.from('shop_order_items').upsert({ order_id: shopCartId, product_id: btn.dataset.addProduct, quantity: 1, unit_price_ars: Number(btn.dataset.price) }, { onConflict: 'order_id,product_id' });
+      if (err) status(err.message);
+      else { status('Agregado al carrito.'); refreshShopCart(); }
     });
-    document.querySelector('#view-cart').onclick=async()=>{
-      const {data:items}=await api.from('shop_order_items').select('quantity,unit_price_ars,shop_products(name)').eq('order_id',cartId);
-      const total=(items||[]).reduce((s,i)=>s+i.quantity*i.unit_price_ars,0);
-      open(`<h2>Tu carrito</h2>${items?.length?items.map(i=>`<p>${esc(i.shop_products.name)} × ${i.quantity} · $${(i.quantity*i.unit_price_ars).toLocaleString('es-AR')}</p>`).join(''):'<p>Carrito vacío</p>'}
-        <p><strong>Total: $${total.toLocaleString('es-AR')}</strong></p><p class="fine">El cobro se habilita con Mercado Pago (sandbox).</p><button class="secondary" id="back-shop">Volver</button>`);
-      document.querySelector('#back-shop').onclick=shopReal;
-    };
   }
   let realMapLayer;
   async function renderRealMap() {
@@ -552,11 +647,16 @@ export function bootPetCity() {
       if(requestError){status(requestError.message);button.disabled=false;}else {open('<div class="eyebrow">SOLICITUD ENVIADA</div><h2 id="dialog-title">Esperando respuesta del cuidador</h2><p>Podés seguirla en Mi perfil. Todavía no se realizó ningún pago.</p><button class="primary" id="go-account">Ver mi perfil</button>');document.querySelector('#go-account').onclick=dashboard;}
     };
   }
-  document.querySelector('#shop-nav')?.addEventListener('click',ev=>{getClient().auth.getUser().then(({data})=>{if(data.user){ev.stopImmediatePropagation();shopReal();}}).catch(()=>{});},true);
+  document.querySelector('#shop-nav')?.addEventListener('click', ev => {
+    ev.stopImmediatePropagation();
+    ev.preventDefault();
+    shopPage();
+  }, true);
   document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(renderRealOffers,0)));
   document.querySelector('#search').addEventListener('submit',event=>{if(realOffers.length){event.preventDefault();event.stopImmediatePropagation();searchedPlace=document.querySelector('#place').value.trim().split(',')[0].toLowerCase();renderRealOffers();}},true);
   refreshRealOffers();
-  if(new URLSearchParams(location.search).has('post'))setTimeout(community,500);
+  if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
+  syncViewFromHash();
   document.querySelector('#login-nav').addEventListener('click', event => {
     event.stopImmediatePropagation();
     setTimeout(accountHome, 0);
