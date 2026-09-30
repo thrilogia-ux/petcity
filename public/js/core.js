@@ -28,9 +28,8 @@ export function formatMapPrice(amount) {
   return '$' + Number(amount).toLocaleString('es-AR');
 }
 
-export function buildMapPinHtml({ photoUrl, serviceKey, price, active = false }) {
-  const thumb = String(photoUrl ?? '').replace(/"/g, '&quot;');
-  return `<div class="map-pin-chip${active ? ' is-active' : ''}"><img class="map-pin-thumb" src="${thumb}" alt=""><span class="map-pin-svc" aria-hidden="true">${serviceIcon(serviceKey)}</span><span class="map-pin-price">${esc(formatMapPrice(price))}</span></div>`;
+export function buildMapPinHtml({ serviceKey, price, active = false }) {
+  return `<div class="map-pin-chip${active ? ' is-active' : ''}"><span class="map-pin-svc" aria-hidden="true">${serviceIcon(serviceKey)}</span><span class="map-pin-price">${esc(formatMapPrice(price))}</span></div>`;
 }
 
 export function createMapPinIcon(L, options) {
@@ -38,8 +37,8 @@ export function createMapPinIcon(L, options) {
   return L.divIcon({
     className: 'pet-map-icon',
     html: buildMapPinHtml(options),
-    iconSize: [142, 52],
-    iconAnchor: [71, 52],
+    iconSize: [108, 44],
+    iconAnchor: [54, 44],
   });
 }
 

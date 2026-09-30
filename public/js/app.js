@@ -706,11 +706,7 @@ export function bootPetCity() {
     for (const row of data) {
       if (row.lat == null || row.lng == null) continue;
       const meta = offersById[row.offer_id] || {};
-      const photoUrl = meta.photo_path
-        ? await signedPhoto(meta.photo_path)
-        : sitterCardPhotoPlaceholder(row.public_name || meta.public_name);
       const icon = createMapPinIcon(L, {
-        photoUrl: photoUrl || sitterCardPhotoPlaceholder(row.public_name),
         serviceKey: row.service,
         price: row.price_ars,
         active: false,
@@ -754,6 +750,30 @@ export function bootPetCity() {
       if (url) img.src = url;
     }));
   }
+  function formatCardRating(o) {
+    const count = Number(o.rating_count) || 0;
+    if (!count) return '<span class="card-rating card-rating-new"><b>★</b> Nuevo</span>';
+    const avg = o.rating_avg != null ? esc(String(o.rating_avg)) : '—';
+    return `<span class="card-rating"><b>★</b> ${avg} <span class="muted">(${count})</span></span>`;
+  }
+  async function attachSitterRatings(offers) {
+    const firstOfferByApp = new Map();
+    for (const o of offers) {
+      if (o.application_id && !firstOfferByApp.has(o.application_id)) firstOfferByApp.set(o.application_id, o.id);
+    }
+    const ratings = {};
+    await Promise.all([...firstOfferByApp.entries()].map(async ([appId, offerId]) => {
+      try {
+        const { data } = await getClient().rpc('petcity_public_sitter_profile', { chosen_offer: offerId });
+        if (data) ratings[appId] = { rating_avg: data.rating_avg, rating_count: data.rating_count };
+      } catch { /* perfil no disponible */ }
+    }));
+    return offers.map(o => ({
+      ...o,
+      rating_avg: ratings[o.application_id]?.rating_avg ?? o.rating_avg,
+      rating_count: ratings[o.application_id]?.rating_count ?? o.rating_count,
+    }));
+  }
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
@@ -764,16 +784,19 @@ export function bootPetCity() {
       <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter-real">
         <img class="portrait" src="${esc(sitterCardPhotoPlaceholder(o.public_name))}" alt="Foto de ${esc(o.public_name)}" width="126" height="142" loading="lazy"${o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : ''}>
         <div class="cardbody">
-          <span class="badge-verified">Verificado</span>
+          <div class="card-sitter-head">
+            <span class="badge-verified">Verificado</span>
+            <div class="card-sitter-tools">
+              ${formatCardRating(o)}
+              <button type="button" class="save-heart${realSavedOffers.has(o.id) ? ' is-saved' : ''}" data-save-offer="${esc(o.id)}" aria-label="${realSavedOffers.has(o.id) ? 'Quitar de guardados' : 'Guardar cuidador'}" aria-pressed="${realSavedOffers.has(o.id)}"><span aria-hidden="true">${realSavedOffers.has(o.id) ? '♥' : '♡'}</span></button>
+            </div>
+          </div>
           <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
           <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel(o)}</div>
           ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
           <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
           <div class="cardfoot cardfoot-verified">
-            <div class="cardfoot-top">
-              <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
-              <button type="button" class="save-caregiver" data-save-offer="${esc(o.id)}" aria-label="${realSavedOffers.has(o.id) ? 'Quitar de guardados' : 'Guardar cuidador'}">${realSavedOffers.has(o.id) ? '♥ Guardado' : '♡ Guardar'}</button>
-            </div>
+            <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
             <div class="card-sitter-actions">
               <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
               <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
@@ -806,8 +829,9 @@ export function bootPetCity() {
         const photo_path=(a.sitter_offer_photos||[])
           .filter(p=>p.status==='approved')
           .sort((x,y)=>x.sort_order-y.sort_order)[0]?.photo_path||null;
-        return (a.sitter_offers||[]).map(o=>({...o,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
+        return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
       });
+      realOffers = await attachSitterRatings(realOffers);
       offersSection.hidden=!realOffers.length;
       if(realOffers.length){renderRealOffers();renderRealMap();}
       else if(window.petcityRealOffersLayer)window.petcityRealOffersLayer.clearLayers();
