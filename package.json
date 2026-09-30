@@ -9,6 +9,6 @@
     "check": "node scripts/check.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   }
 }

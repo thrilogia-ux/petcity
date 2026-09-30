@@ -20,4 +20,7 @@ for (const path of ['account.js', 'js/core.js', 'js/shell.js', 'js/app.js', 'ref
 }
 JSON.parse(readFileSync(root + 'vercel.json', 'utf8'));
 if (!existsSync(root + 'supabase/006_sitter_public_profile.sql')) throw Error('Missing migration 006');
+for (const file of ['api/mp/create-preference.js', 'api/mp/webhook.js']) {
+  execFileSync(process.execPath, ['--check', root + file]);
+}
 console.log(`PASS: JS modules, ${count} inline scripts, assets and Vercel config.`);

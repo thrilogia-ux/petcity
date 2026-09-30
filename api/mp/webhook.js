@@ -2,7 +2,7 @@
  * Webhook Mercado Pago (sandbox/producción). Verificar firma en producción.
  * Env: MP_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MP_WEBHOOK_SECRET (opcional)
  */
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const token = process.env.MP_ACCESS_TOKEN;
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -32,4 +32,4 @@ export default async function handler(req, res) {
   });
 
   return res.status(200).end();
-}
+};
