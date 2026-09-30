@@ -728,33 +728,58 @@ export function bootPetCity() {
   offersSection.className='real-offers-block';
   const cardsEl=document.querySelector('#guest-main .content #cards');
   if(cardsEl?.parentElement)cardsEl.parentElement.insertBefore(offersSection,cardsEl);
+  function sitterCardPhotoPlaceholder(name) {
+    const label = encodeURIComponent(String(name || 'Cuidador').trim().slice(0, 24));
+    return `https://ui-avatars.com/api/?name=${label}&background=c7f3e8&color=173e3a&size=280&bold=true`;
+  }
+  async function hydrateRealOfferPortraits(root) {
+    await Promise.all([...root.querySelectorAll('img.portrait[data-photo-path]')].map(async img => {
+      const path = img.dataset.photoPath;
+      if (!path) return;
+      const url = await signedPhoto(path);
+      if (url) img.src = url;
+    }));
+  }
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
     const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace)));
+    const serviceLabel = o => esc(serviceLabels[o.service] || o.service);
     offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} cuidador${shown.length===1?'':'es'} real${shown.length===1?'':'es'}</h3></div>
-      <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter">
-        <span class="badge-verified">Verificado</span>
-        <div class="eyebrow">${esc(serviceLabels[o.service])} · ${esc(o.city)}</div>
-        <h3>${esc(o.public_name)}</h3>
-        <p class="card-sitter-bio">${esc(o.bio)}</p>
-        <p class="card-sitter-price">Desde <strong>$${Number(o.price_ars).toLocaleString('es-AR')}</strong> / ${esc(o.unit)}</p>
-        <div class="card-sitter-actions">
-          <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
-          <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter-real">
+        <img class="portrait" src="${esc(sitterCardPhotoPlaceholder(o.public_name))}" alt="Foto de ${esc(o.public_name)}" width="126" height="142" loading="lazy"${o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : ''}>
+        <div class="cardbody">
+          <span class="badge-verified">Verificado</span>
+          <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
+          <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel(o)}</div>
+          ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
+          <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
+          <div class="cardfoot cardfoot-verified">
+            <span class="price">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
+            <div class="card-sitter-actions">
+              <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
+              <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+            </div>
+          </div>
         </div>
       </article>`).join('') : '<p class="empty-state">No hay ofertas aprobadas con esos filtros.</p>'}</div>
       <p class="fine">${paymentsEnabled?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
+    hydrateRealOfferPortraits(offersSection);
   }
   async function refreshRealOffers() {
     try {
       const {data,error}=await getClient().from('sitter_applications')
-        .select('id,public_name,city,bio,headline,sitter_offers(id,service,price_ars,unit)')
+        .select('id,public_name,city,bio,headline,sitter_offers(id,service,price_ars,unit),sitter_offer_photos(photo_path,sort_order,status)')
         .eq('status','approved');
       if(error) return;
-      realOffers=(data||[]).flatMap(a=>(a.sitter_offers||[]).map(o=>({...o,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline})));
+      realOffers=(data||[]).flatMap(a=>{
+        const photo_path=(a.sitter_offer_photos||[])
+          .filter(p=>p.status==='approved')
+          .sort((x,y)=>x.sort_order-y.sort_order)[0]?.photo_path||null;
+        return (a.sitter_offers||[]).map(o=>({...o,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
+      });
       offersSection.hidden=!realOffers.length;
       if(realOffers.length){renderRealOffers();renderRealMap();}
       else if(window.petcityRealOffersLayer)window.petcityRealOffersLayer.clearLayers();
