@@ -1,7 +1,7 @@
 import {
   paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
   openModal as open, closeModal, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
-  createMapPinIcon, formatMapPrice,
+  createMapPinIcon, formatMapPrice, serviceIcon,
 } from './core.js';
 import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './shell.js';
 
@@ -600,26 +600,66 @@ export function bootPetCity() {
     };
   }
   async function publicSitterProfile(offerId) {
-    const {data,error}=await getClient().rpc('petcity_public_sitter_profile',{chosen_offer:offerId});
-    if(error){open(`<h2 id="dialog-title">Perfil</h2><p>${esc(error.message)}</p>`);return;}
-    const p=data;
-    const photos=Array.isArray(p.photos)?p.photos:[];
-    open(`<div class="profile-hero"><div><span class="badge-verified">Verificado por PetCity</span>
-      <div class="eyebrow">${esc(serviceLabels[p.service])} · ${esc(p.city)}</div>
-      <h2 id="dialog-title">${esc(p.public_name)}</h2>
-      ${p.headline?`<p><strong>${esc(p.headline)}</strong></p>`:''}
-      <p>${esc(p.bio)}</p>
-      ${p.rating_count?`<p class="rating"><b>★ ${esc(p.rating_avg)}</b> · ${p.rating_count} reseñas verificadas</p>`:'<p class="fine">Todavía sin reseñas verificadas.</p>'}
-      <strong>$${Number(p.price_ars).toLocaleString('es-AR')} / ${esc(p.unit)}</strong>
-      </div></div>
-      <div class="profile-tabs"><button class="active" type="button">Resumen</button><button type="button" disabled>Fotos (${photos.length})</button></div>
-      <div class="profile-gallery" id="profile-photos">${photos.length?'Cargando fotos…':'<p class="fine">El cuidador aún no tiene fotos aprobadas.</p>'}</div>
-      <button class="primary" id="book-from-profile" style="margin-top:16px">Solicitar cuidado</button>
-      <button class="secondary" id="close-profile">Cerrar</button>`);
-    document.querySelector('#book-from-profile').onclick=()=>realBooking(realOffers.find(o=>o.id===offerId));
-    document.querySelector('#close-profile').onclick=()=>document.querySelector('#overlay').classList.remove('open');
-    for (const ph of photos) {
-      const url=await signedPhoto(ph.path);if(url)document.querySelector('#profile-photos').insertAdjacentHTML('beforeend',`<img src="${esc(url)}" alt="" style="max-width:100%;border-radius:12px;margin:8px 0">`);
+    const { data, error } = await getClient().rpc('petcity_public_sitter_profile', { chosen_offer: offerId });
+    if (error) { open(`<h2 id="dialog-title">Perfil</h2><p>${esc(error.message)}</p>`); return; }
+    const p = data;
+    const photos = Array.isArray(p.photos) ? p.photos : [];
+    const offerMeta = realOffers.find(o => o.id === offerId);
+    const portraitPlaceholder = sitterCardPhotoPlaceholder(p.public_name);
+    const homeLabels = { casa: 'Casa', depto: 'Departamento', finca: 'Finca con patio' };
+    const detailChips = [
+      p.neighborhood ? esc(p.neighborhood) : null,
+      p.max_pets ? `Hasta ${p.max_pets} mascota${p.max_pets > 1 ? 's' : ''}` : null,
+      p.home_type ? homeLabels[p.home_type] || esc(p.home_type) : null,
+      p.accepts_cats === false ? 'Solo perros' : null,
+      p.accepts_large_dogs === false ? 'Sin perros grandes' : null,
+    ].filter(Boolean);
+    const ratingHtml = p.rating_count
+      ? `<p class="spp-rating"><b>★ ${esc(String(p.rating_avg))}</b> · ${p.rating_count} reseña${p.rating_count === 1 ? '' : 's'} verificada${p.rating_count === 1 ? '' : 's'}</p>`
+      : '<p class="spp-rating spp-rating-new"><b>★</b> Nuevo en PetCity</p>';
+    open(`<article class="sitter-public-profile">
+      <header class="spp-header">
+        <img class="spp-portrait" id="spp-portrait" src="${esc(portraitPlaceholder)}" alt="Foto de ${esc(p.public_name)}" width="120" height="120">
+        <div class="spp-head-text">
+          <span class="badge-verified">Verificado por PetCity</span>
+          <h2 id="dialog-title">${esc(p.public_name)}</h2>
+          <p class="spp-meta"><span class="spp-service-icon" aria-hidden="true">${serviceIcon(p.service)}</span> ${esc(serviceLabels[p.service] || p.service)} · ⌖ ${esc(p.city)}</p>
+          ${ratingHtml}
+        </div>
+        <div class="spp-price-block">
+          <span class="spp-price">$${Number(p.price_ars).toLocaleString('es-AR')}</span>
+          <span class="spp-unit">/ ${esc(p.unit)}</span>
+        </div>
+      </header>
+      ${p.headline ? `<p class="spp-headline">${esc(p.headline)}</p>` : ''}
+      <section class="spp-section">
+        <h3 class="spp-section-title">Sobre el cuidador</h3>
+        <p class="spp-bio">${esc(p.bio)}</p>
+        ${detailChips.length ? `<ul class="spp-chips">${detailChips.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}
+      </section>
+      <section class="spp-section">
+        <h3 class="spp-section-title">Fotos del servicio</h3>
+        <div class="spp-gallery" id="profile-photos">${photos.length ? '<p class="fine">Cargando fotos…</p>' : '<p class="spp-empty">El cuidador aún no tiene fotos aprobadas.</p>'}</div>
+      </section>
+      <footer class="spp-footer">
+        <button type="button" class="primary" id="book-from-profile">Solicitar cuidado</button>
+      </footer>
+      <p class="fine spp-note">Reseñas y fotos provienen de servicios completados y moderados en PetCity.</p>
+    </article>`);
+    document.querySelector('#book-from-profile').onclick = () => realBooking(offerMeta || realOffers.find(o => o.id === offerId) || { id: offerId, ...p });
+    const portraitEl = document.querySelector('#spp-portrait');
+    const photoPath = offerMeta?.photo_path || photos[0]?.path;
+    if (photoPath && portraitEl) {
+      const url = await signedPhoto(photoPath);
+      if (url) portraitEl.src = url;
+    }
+    const gallery = document.querySelector('#profile-photos');
+    if (photos.length && gallery) {
+      gallery.innerHTML = '';
+      for (const ph of photos) {
+        const url = await signedPhoto(ph.path);
+        if (url) gallery.insertAdjacentHTML('beforeend', `<img src="${esc(url)}" alt="" loading="lazy">`);
+      }
     }
   }
   function initWalkTracking(booking,userId,isSitter,isWalk) {
@@ -796,10 +836,12 @@ export function bootPetCity() {
           ${o.bio ? `<p class="description">${esc(o.bio)}</p>` : ''}
           <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
           <div class="cardfoot cardfoot-verified">
-            <button type="button" class="secondary card-btn-profile" data-view-offer="${esc(o.id)}">Ver perfil</button>
             <div class="cardfoot-price-col">
               <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
-              <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+              <div class="cardfoot-actions-row">
+                <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
+                <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+              </div>
             </div>
           </div>
         </div>
