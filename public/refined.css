@@ -116,9 +116,11 @@ footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px
 .timeline-step.done{background:var(--pc-accent-soft);border-color:#b9e9db;color:#155b51;font-weight:600}
 body.demo-mode #guest-main .intro .fine::after{content:' · Modo demo activo'}
 body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
-#real-map,#real-offers{margin-bottom:24px}
-#approved-offers-map .mapwrap{min-height:280px;border-radius:20px;border:1px solid var(--pc-line);overflow:hidden}
-#approved-offers-map .fine{padding:12px 4px;line-height:1.5}
+#real-map{margin-bottom:0}
+#real-offers.real-offers-block{margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid var(--pc-line)}
+#real-offers .fine{margin-top:12px;font-size:13px;line-height:1.45}
+#real-offers .results-head-compact{margin-bottom:14px}
+#real-offers .real-offers-title{margin:6px 0 0;font-size:18px;font-weight:700;line-height:1.25}
 .profile-gallery img{display:block}
 @media(max-width:1000px){.mapwrap{top:0}}
 @media(max-width:800px){.top{height:70px}.topnav{background:#fff;border-color:var(--pc-line);border-radius:18px;box-shadow:0 8px 24px #00000012}.topnav .navpill{border-color:transparent!important}.topnav button:hover{background:var(--pc-soft)}}
@@ -129,8 +131,7 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
-#real-offers .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:18px;max-width:100%;overflow:hidden}
-#real-offers .results-head{margin-bottom:16px}
+#real-offers .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
 body.app-mode main#guest-main{display:none}
 #petcity-app{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,48px) 48px}
 

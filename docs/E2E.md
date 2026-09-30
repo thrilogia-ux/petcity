@@ -2,6 +2,35 @@
 
 Completar en Vercel + Supabase con cuentas separadas. Marcar: OK / Fallo / N/A.
 
+## Cuentas de prueba (Fase 1)
+
+| Rol | Email | Uso |
+|-----|--------|-----|
+| **Admin / moderación** | `thrilogia@gmail.com` | Aprobar postulaciones y comunidad |
+| **Dueño de mascota** | `dario@thrilogia.com` | Mascotas, solicitudes, reseñas, shop |
+| **Cuidador** | `thrilogia@hotmail.com` | Postulación, aceptar servicios, novedades, GPS paseo |
+
+Cada cuenta debe existir en **Supabase Auth** (registro + email confirmado). Cerrar sesión al cambiar de rol.
+
+### Hacer admin a thrilogia@gmail.com
+
+Ejecutar en SQL Editor **después** de que ese email se haya registrado al menos una vez:
+
+```sql
+insert into public.admin_users(user_id)
+select id from auth.users where email = 'thrilogia@gmail.com'
+on conflict (user_id) do nothing;
+```
+
+Comprobar:
+
+```sql
+select u.email, a.user_id
+from public.admin_users a
+join auth.users u on u.id = a.user_id
+where u.email = 'thrilogia@gmail.com';
+```
+
 | Paso | Dueño | Cuidador | Admin | Anónimo |
 |------|-------|----------|-------|---------|
 | Ver ofertas aprobadas | — | — | — | OK esperado |
@@ -27,10 +56,6 @@ Completar en Vercel + Supabase con cuentas separadas. Marcar: OK / Fallo / N/A.
 - **Site URL:** URL de producción Vercel
 - **Redirect URLs:** `https://<proyecto>.vercel.app/**`, `http://localhost:3000/**`
 
-## Admin
+## Admin (referencia)
 
-```sql
-insert into public.admin_users(user_id)
-select id from auth.users where email = 'TU_EMAIL'
-on conflict (user_id) do nothing;
-```
+Ver bloque **Cuentas de prueba** arriba para el email activo del entorno.

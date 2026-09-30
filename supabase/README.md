@@ -31,13 +31,17 @@ Ejecutar una sola vez, en orden: 001 → 005 (ver lista histórica abajo), luego
 
 Cada archivo completo (`begin;` … `commit;`).
 
-## Administrador
+## Administrador (pruebas Fase 1)
+
+Email admin acordado: `thrilogia@gmail.com` (debe estar registrado en Auth antes):
 
 ```sql
 insert into public.admin_users(user_id)
-select id from auth.users where email = 'TU_EMAIL_REGISTRADO'
+select id from auth.users where email = 'thrilogia@gmail.com'
 on conflict (user_id) do nothing;
 ```
+
+Dueño de prueba: `dario@thrilogia.com` · Cuidador: `thrilogia@hotmail.com` · Detalle en `docs/E2E.md`.
 
 ## URLs
 

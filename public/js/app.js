@@ -685,41 +685,54 @@ export function bootPetCity() {
     });
     shopBusy = false;
   }
-  let realMapLayer;
+  let realMapPending;
   async function renderRealMap() {
-    const host = document.querySelector('#approved-offers-map');
-    if (!host) return;
-    const {data,error}=await getClient().rpc('petcity_list_approved_offers_map');
-    if (error || !data?.length) {
-      host.innerHTML = '<p class="fine">Todavía no hay puntos en el mapa. El cuidador aprobado debe entrar a <strong>Mi perfil → Modo cuidador → Marcar mi zona en el mapa</strong> (permiso de ubicación).</p>';
+    const layer = window.petcityRealOffersLayer;
+    const map = window.petcityCityMap;
+    if (!layer || !map || !window.L) {
+      if (!realMapPending) {
+        realMapPending = true;
+        window.addEventListener('petcity-map-ready', () => { realMapPending = false; renderRealMap(); }, { once: true });
+        setTimeout(() => { if (realMapPending) { realMapPending = false; renderRealMap(); } }, 800);
+      }
       return;
     }
-    host.innerHTML='<div id="real-map-canvas" class="mapwrap" style="height:320px"></div>';
-    const map=L.map('real-map-canvas').setView([-34.6037,-58.3816],11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    realMapLayer?.remove();realMapLayer=L.layerGroup().addTo(map);
-    data.forEach(o=>{L.marker([o.lat,o.lng]).addTo(realMapLayer).bindPopup(`<strong>${esc(o.public_name)}</strong><br>${esc(serviceLabels[o.service])}<br>$${Number(o.price_ars).toLocaleString('es-AR')}`);});
+    layer.clearLayers();
+    const { data, error } = await getClient().rpc('petcity_list_approved_offers_map');
+    if (error || !data?.length) return;
+    const verifiedIcon = L.divIcon({
+      className: 'pet-map-icon',
+      html: '<span class="pet-map-pin active" style="background:#173e3a">✓</span>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+    });
+    const bounds = [];
+    data.forEach(o => {
+      if (o.lat == null || o.lng == null) return;
+      const pos = [o.lat, o.lng];
+      bounds.push(pos);
+      L.marker(pos, { icon: verifiedIcon, title: o.public_name }).addTo(layer)
+        .bindPopup(`<strong>${esc(o.public_name)}</strong><br>${esc(serviceLabels[o.service] || o.service)}<br>$${Number(o.price_ars).toLocaleString('es-AR')}`);
+    });
+    if (bounds.length) {
+      setTimeout(() => map.invalidateSize(), 50);
+    }
   }
   const demoMode=new URLSearchParams(location.search).has('demo');
   if(demoMode)document.body.classList.add('demo-mode');
   let realOffers=[];
   let searchedPlace='';
-  const offersSection=document.createElement('section');
+  const offersSection=document.createElement('div');
   offersSection.id='real-offers';
   offersSection.hidden=true;
-  const mapSection=document.createElement('section');
-  mapSection.id = 'approved-offers-map';
-  mapSection.hidden = true;
-  const categoriesEl = document.querySelector('.categories');
-  if (categoriesEl) {
-    categoriesEl.after(mapSection);
-    categoriesEl.after(offersSection);
-  }
+  offersSection.className='real-offers-block';
+  const cardsEl=document.querySelector('#guest-main .content #cards');
+  if(cardsEl?.parentElement)cardsEl.parentElement.insertBefore(offersSection,cardsEl);
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
     const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace)));
-    offersSection.innerHTML=`<div class="results-head"><div><div class="eyebrow">OFERTAS APROBADAS</div><h2>Cuidadores reales · ${shown.length}</h2></div></div>
+    offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} cuidador${shown.length===1?'':'es'} real${shown.length===1?'':'es'}</h3></div>
       <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter">
         <span class="badge-verified">Verificado</span>
         <div class="eyebrow">${esc(serviceLabels[o.service])} · ${esc(o.city)}</div>
@@ -743,10 +756,8 @@ export function bootPetCity() {
       if(error) return;
       realOffers=(data||[]).flatMap(a=>(a.sitter_offers||[]).map(o=>({...o,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline})));
       offersSection.hidden=!realOffers.length;
-      mapSection.hidden=!realOffers.length;
-      const guestContent=document.querySelector('#guest-main .content');
-      if(guestContent)guestContent.hidden=!demoMode&&Boolean(realOffers.length);
       if(realOffers.length){renderRealOffers();renderRealMap();}
+      else if(window.petcityRealOffersLayer)window.petcityRealOffersLayer.clearLayers();
     } catch(error) { console.error('PetCity approved offers:',error); }
   }
   async function realBooking(offer) {
