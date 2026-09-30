@@ -51,6 +51,12 @@ export function openModal(html, { wide = true, community = false } = {}) {
   document.querySelector('#overlay').classList.add('open');
 }
 
+export function closeModal() {
+  clearServiceMessageTimer();
+  document.querySelector('#overlay')?.classList.remove('open');
+  document.querySelector('.modal')?.classList.remove('wide', 'community-wide');
+}
+
 /** Contenido en panel de cuenta (sin popup). */
 export function fillAccountPanel(html) {
   clearServiceMessageTimer();

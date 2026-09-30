@@ -1,6 +1,6 @@
 import {
   paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
-  openModal as open, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
+  openModal as open, closeModal, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
 } from './core.js';
 import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './shell.js';
 
@@ -109,7 +109,12 @@ export function bootPetCity() {
           ? await getClient().auth.signUp({ email, password, options: { data: { full_name: String(form.get('name')).trim() }, emailRedirectTo: location.origin + '/' } })
           : await getClient().auth.signInWithPassword({ email, password });
         if (result.error) throw result.error;
-        if (result.data.session) await dashboard();
+        if (result.data.session) {
+          closeModal();
+          status('');
+          await dashboard();
+          await syncNav();
+        }
         else status(mode === 'signup'
           ? 'Te enviamos un email de confirmación. Abrilo desde este dispositivo y volvé a ingresar.'
           : 'Si tu cuenta no está confirmada, revisá el email de PetCity o pedí un enlace nuevo desde registro.');
@@ -143,6 +148,8 @@ export function bootPetCity() {
   }
   async function dashboard() {
     try {
+      closeModal();
+      status('');
       const api = getClient();
       const { data: auth } = await api.auth.getUser();
       if (!auth.user) return login();
@@ -188,7 +195,14 @@ export function bootPetCity() {
           : await api.rpc('petcity_decide_booking',{chosen_booking:button.dataset.booking,decision:button.dataset.decision});
         if(result.error){status(result.error.message);button.disabled=false;}else dashboard();
       });
-      document.querySelector('#real-signout').onclick = async () => { await api.auth.signOut(); await syncNav(); login(); };
+      await syncNav();
+      document.querySelector('#real-signout').onclick = async () => {
+        await api.auth.signOut();
+        await syncNav();
+        closeModal();
+        status('');
+        openSignIn();
+      };
     } catch (error) { open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>No pudimos cargar tus datos: ${esc(error.message)}</p><button class="secondary" id="retry-account">Reintentar</button>`); document.querySelector('#retry-account').onclick = dashboard; }
   }
   async function moderation() {
