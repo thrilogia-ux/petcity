@@ -117,6 +117,8 @@ footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px
 body.demo-mode #guest-main .intro .fine::after{content:' · Modo demo activo'}
 body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #real-map,#real-offers{margin-bottom:24px}
+#approved-offers-map .mapwrap{min-height:280px;border-radius:20px;border:1px solid var(--pc-line);overflow:hidden}
+#approved-offers-map .fine{padding:12px 4px;line-height:1.5}
 .profile-gallery img{display:block}
 @media(max-width:1000px){.mapwrap{top:0}}
 @media(max-width:800px){.top{height:70px}.topnav{background:#fff;border-color:var(--pc-line);border-radius:18px;box-shadow:0 8px 24px #00000012}.topnav .navpill{border-color:transparent!important}.topnav button:hover{background:var(--pc-soft)}}

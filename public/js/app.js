@@ -203,8 +203,9 @@ export function bootPetCity() {
         services: `<h3>Mis cuidados</h3><p>Acá aparecen tus solicitudes, horarios y novedades del cuidado.</p>${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
+          ${application?.status === 'approved' ? `<p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa público (zona aproximada).' : 'Para aparecer en el mapa de la home, marcá tu zona una vez.'}</p>` : ''}
           <button class="dash-call" id="real-application">${application ? 'Ver postulación' : 'Empezar postulación'}</button>
-          ${application?.status === 'approved' ? '<button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
+          ${application?.status === 'approved' ? '<button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
         community: ''
       };
       fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
@@ -217,6 +218,7 @@ export function bootPetCity() {
       document.querySelector('#manage-offers')?.addEventListener('click',()=>sitterOffersManager(application));
       document.querySelector('#manage-availability')?.addEventListener('click',()=>sitterAvailabilityForm(application));
       document.querySelector('#upload-offer-photo')?.addEventListener('click',()=>sitterPhotoUpload(application));
+      document.querySelector('#sitter-map-location')?.addEventListener('click', () => sitterSetMapLocation(application));
       document.querySelector('#open-community')?.addEventListener('click', () => { setView('community'); community(); });
       document.querySelectorAll('[data-booking]').forEach(button=>button.onclick=async()=>{
         button.disabled=true;
@@ -563,6 +565,28 @@ export function bootPetCity() {
       status('Agenda actualizada.');
     };
   }
+  function sitterSetMapLocation(application) {
+    if (!application || application.status !== 'approved') return;
+    const save = async (lat, lng) => {
+      const { error } = await getClient().rpc('petcity_update_sitter_location', { p_lat: lat, p_lng: lng });
+      if (error) status(error.message);
+      else {
+        status('Ubicación guardada. Dueños verán tu zona aproximada en el mapa.');
+        refreshRealOffers();
+        dashboard();
+      }
+    };
+    if (!navigator.geolocation) {
+      status('Tu navegador no soporta geolocalización. Usá Chrome o Edge en el celular o PC.');
+      return;
+    }
+    status('Obteniendo ubicación…');
+    navigator.geolocation.getCurrentPosition(
+      pos => save(pos.coords.latitude, pos.coords.longitude),
+      () => status('No pudimos leer la ubicación. Revisá permisos del navegador e intentá de nuevo.'),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  }
   async function sitterPhotoUpload(application) {
     open(`<div class="eyebrow">FOTOS</div><h2 id="dialog-title">Fotos de tu servicio</h2>
       <form id="offer-photo-form" class="account-form"><label>Foto<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><button class="primary">Enviar a revisión</button></form>
@@ -666,7 +690,10 @@ export function bootPetCity() {
     const host = document.querySelector('#approved-offers-map');
     if (!host) return;
     const {data,error}=await getClient().rpc('petcity_list_approved_offers_map');
-    if(error||!data?.length){host.innerHTML='<p class="fine">Mapa disponible cuando los cuidadores carguen ubicación (migración 010).</p>';return;}
+    if (error || !data?.length) {
+      host.innerHTML = '<p class="fine">Todavía no hay puntos en el mapa. El cuidador aprobado debe entrar a <strong>Mi perfil → Modo cuidador → Marcar mi zona en el mapa</strong> (permiso de ubicación).</p>';
+      return;
+    }
     host.innerHTML='<div id="real-map-canvas" class="mapwrap" style="height:320px"></div>';
     const map=L.map('real-map-canvas').setView([-34.6037,-58.3816],11);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
