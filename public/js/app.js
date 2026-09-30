@@ -32,7 +32,7 @@ export function bootPetCity() {
     accountNav.before(careNav);
     careNav.before(communityNav);
   }
-  communityNav.onclick = () => { setView('community'); community(); };
+  communityNav.onclick = () => setView('community');
   accountNav.onclick = () => { accountTab = 'pets'; accountHome(); };
   careNav.onclick = () => { accountTab = 'services'; accountHome(); };
   const modal = document.querySelector('#modal-content');
@@ -68,25 +68,20 @@ export function bootPetCity() {
     }, true);
   }
 
-  function openSignIn() {
-    setView('account', location.hash.replace(/^#\/?/, '').split('/')[0].toLowerCase() !== 'cuenta');
-    fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Ingresá o creá tu cuenta</h2><p class="fine">Completá email y contraseña en el formulario.</p></div></header>`);
-    login('signin');
+  function loginFormHtml(mode = 'signin') {
+    return `<form id="account-form" class="account-form">
+      ${mode === 'signup' ? '<label>Nombre<input name="name" required maxlength="100" autocomplete="name"></label>' : ''}
+      <label>Email<input name="email" type="email" required autocomplete="email"></label>
+      <label>Contraseña<input name="password" type="password" required minlength="8" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}"></label>
+      <button class="primary" type="submit">${mode === 'signup' ? 'Crear cuenta' : 'Ingresar'}</button>
+    </form>
+    <button type="button" class="secondary" id="switch-account" style="margin-top:12px">${mode === 'signup' ? 'Ya tengo cuenta' : 'Crear una cuenta'}</button>
+    ${mode === 'signin' ? '<button type="button" class="secondary" id="forgot-password" style="margin-top:8px">Olvidé mi contraseña</button>' : ''}`;
   }
 
-  const login = (mode = 'signin') => {
-    open(`<div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">${mode === 'signup' ? 'Crear cuenta' : 'Ingresar a tu cuenta'}</h2>
-      <p>Tus mascotas y postulaciones quedarán guardadas en tu cuenta.</p>
-      <form id="account-form" class="account-form">
-        ${mode === 'signup' ? '<label>Nombre<input name="name" required maxlength="100" autocomplete="name"></label>' : ''}
-        <label>Email<input name="email" type="email" required autocomplete="email"></label>
-        <label>Contraseña<input name="password" type="password" required minlength="8" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}"></label>
-        <button class="primary" type="submit">${mode === 'signup' ? 'Crear cuenta' : 'Ingresar'}</button>
-      </form><button class="secondary" id="switch-account" style="margin-top:12px">${mode === 'signup' ? 'Ya tengo cuenta' : 'Crear una cuenta'}</button>
-      ${mode === 'signin' ? '<button type="button" class="secondary" id="forgot-password" style="margin-top:8px">Olvidé mi contraseña</button>' : ''}
-      <p id="account-status" role="status" aria-live="polite"></p>`);
-    document.querySelector('#switch-account').onclick = () => login(mode === 'signup' ? 'signin' : 'signup');
-    document.querySelector('#forgot-password')?.addEventListener('click', async () => {
+  function wireLoginForm(mode = 'signin') {
+    document.getElementById('switch-account')?.addEventListener('click', () => showLoginPanel(mode === 'signup' ? 'signin' : 'signup'));
+    document.getElementById('forgot-password')?.addEventListener('click', async () => {
       const email = String(document.querySelector('#account-form input[name=email]')?.value || '').trim();
       if (!email) { status('Ingresá tu email para recibir el enlace de recuperación.'); return; }
       status('Enviando enlace…');
@@ -96,37 +91,57 @@ export function bootPetCity() {
         status('Revisá tu email. El enlace vuelve a PetCity para elegir una contraseña nueva.');
       } catch (error) { status(error.message || 'No pudimos enviar el enlace.'); }
     });
-    document.querySelector('#account-form').onsubmit = async event => {
+    document.getElementById('account-form')?.addEventListener('submit', async event => {
       event.preventDefault();
       const button = event.target.querySelector('button[type=submit]');
       button.disabled = true;
-      status('Conectando…');
+      status('Entrando…');
+      closeModal();
       try {
         const form = new FormData(event.target);
         const email = String(form.get('email')).trim();
         const password = String(form.get('password'));
-        const result = mode === 'signup'
-          ? await getClient().auth.signUp({ email, password, options: { data: { full_name: String(form.get('name')).trim() }, emailRedirectTo: location.origin + '/' } })
-          : await getClient().auth.signInWithPassword({ email, password });
+        const authCall = mode === 'signup'
+          ? getClient().auth.signUp({ email, password, options: { data: { full_name: String(form.get('name')).trim() }, emailRedirectTo: location.origin + '/' } })
+          : getClient().auth.signInWithPassword({ email, password });
+        const result = await Promise.race([
+          authCall,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('La conexión tardó demasiado. Revisá tu internet e intentá de nuevo.')), 25000)),
+        ]);
         if (result.error) throw result.error;
         if (result.data.session) {
-          closeModal();
-          status('');
+          status('Cargando tu cuenta…');
           await dashboard();
           await syncNav();
+          status('');
+        } else {
+          status(mode === 'signup'
+            ? 'Te enviamos un email de confirmación. Abrilo desde este dispositivo y volvé a ingresar.'
+            : 'Si tu cuenta no está confirmada, revisá el email de PetCity o pedí un enlace nuevo desde registro.');
         }
-        else status(mode === 'signup'
-          ? 'Te enviamos un email de confirmación. Abrilo desde este dispositivo y volvé a ingresar.'
-          : 'Si tu cuenta no está confirmada, revisá el email de PetCity o pedí un enlace nuevo desde registro.');
       } catch (error) {
         const msg = error.message || 'No se pudo completar el acceso.';
         status(/invalid login credentials/i.test(msg)
           ? 'Email o contraseña incorrectos. Si acabás de registrarte, confirmá el email antes de ingresar.'
           : msg);
+      } finally {
+        button.disabled = false;
       }
-      finally { button.disabled = false; }
-    };
-  };
+    });
+  }
+
+  function showLoginPanel(mode = 'signin') {
+    closeModal();
+    setView('account', location.hash.replace(/^#\/?/, '').split('/')[0].toLowerCase() !== 'cuenta');
+    fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">${mode === 'signup' ? 'Crear cuenta' : 'Ingresá a tu cuenta'}</h2><p class="fine">Tus mascotas y postulaciones quedan guardadas en tu cuenta.</p></div></header><div class="account-panel-body">${loginFormHtml(mode)}</div>`);
+    wireLoginForm(mode);
+  }
+
+  function openSignIn() {
+    showLoginPanel('signin');
+  }
+
+  const login = (mode = 'signin') => showLoginPanel(mode);
   window.__petcitySignIn = openSignIn;
   bindLoginNav();
   let accountScreenBusy = false;
@@ -153,14 +168,29 @@ export function bootPetCity() {
       const api = getClient();
       const { data: auth } = await api.auth.getUser();
       if (!auth.user) return login();
-      const [{data: profile, error: profileError}, {data: pets, error: petsError}, {data: application, error: applicationError}, {data: isAdmin, error: adminError}, {data: bookings, error: bookingsError}] = await Promise.all([
-        api.from('profiles').select('*').eq('id', auth.user.id).single(),
+      const [profileRes, petsRes, applicationRes, adminRes, bookingsRes] = await Promise.all([
+        api.from('profiles').select('*').eq('id', auth.user.id).maybeSingle(),
         api.from('pets').select('*').order('created_at', {ascending:false}),
-        api.from('sitter_applications').select('*').eq('user_id',auth.user.id).maybeSingle(),
+        api.from('sitter_applications').select('*').eq('user_id', auth.user.id).maybeSingle(),
         api.rpc('petcity_is_admin'),
-        api.from('bookings').select('id,owner_id,pet_id,offer_id,start_date,end_date,total_price_ars,status').order('created_at',{ascending:false}).limit(20)
+        api.from('bookings').select('id,owner_id,pet_id,offer_id,start_date,end_date,total_price_ars,status').order('created_at', {ascending:false}).limit(20),
       ]);
-      if (profileError || petsError || applicationError || adminError) throw profileError || petsError || applicationError || adminError;
+      let profile = profileRes.data;
+      if (!profile && !profileRes.error) {
+        const display_name = auth.user.user_metadata?.full_name || auth.user.email?.split('@')[0] || 'Usuario';
+        const created = await api.from('profiles').insert({ id: auth.user.id, display_name }).select('*').single();
+        if (created.error) throw created.error;
+        profile = created.data;
+      }
+      const pets = petsRes.data;
+      const application = applicationRes.data;
+      const isAdmin = adminRes.error ? false : Boolean(adminRes.data);
+      const bookings = bookingsRes.data;
+      const profileError = profileRes.error;
+      const petsError = petsRes.error;
+      const applicationError = applicationRes.error;
+      const bookingsError = bookingsRes.error;
+      if (profileError || petsError || applicationError) throw profileError || petsError || applicationError;
       enhancedReady = Object.hasOwn(profile,'phone');
       marketplaceReady = !bookingsError;
       const bookingList = bookings || [];
@@ -362,14 +392,16 @@ export function bootPetCity() {
       if(!document.hidden)refresh();
     },8000));
   }
+  let communityBusy = false;
   async function community() {
-    setView('community');
+    if (communityBusy) return;
+    communityBusy = true;
     const api = getClient();
     const { data: auth } = await api.auth.getUser();
     const composeBtn = document.getElementById('community-compose-btn');
     const composerWrap = document.getElementById('community-composer-wrap');
     const feed = document.getElementById('community-feed');
-    if (!feed) return;
+    if (!feed) { communityBusy = false; return; }
     if (composeBtn) {
       composeBtn.hidden = !auth.user;
       composeBtn.onclick = () => {
@@ -387,12 +419,13 @@ export function bootPetCity() {
     }
     feed.innerHTML = '<p class="fine ig-loading">Cargando historias…</p>';
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const [{ data: posts, error }, { data: likes }, { data: comments }] = await Promise.all([
-      api.from('community_posts').select('*').eq('status', 'approved').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(60),
-      api.from('community_likes').select('post_id,user_id'),
-      api.from('community_comments').select('id,post_id,body,status,created_at').order('created_at', { ascending: true }).limit(200),
+    const { data: posts, error } = await api.from('community_posts').select('*').eq('status', 'approved').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(40);
+    if (error) { feed.innerHTML = `<p class="fine">${esc(error.message)}</p>`; communityBusy = false; return; }
+    const postIds = (posts || []).map(p => p.id);
+    const [{ data: likes }, { data: comments }] = await Promise.all([
+      postIds.length ? api.from('community_likes').select('post_id,user_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+      postIds.length ? api.from('community_comments').select('id,post_id,body,status,created_at').in('post_id', postIds).eq('status', 'approved').limit(200) : Promise.resolve({ data: [] }),
     ]);
-    if (error) { feed.innerHTML = `<p class="fine">${esc(error.message)}</p>`; return; }
     const igPost = p => {
       const likeCount = likes?.filter(l => l.post_id === p.id).length || 0;
       const postComments = (comments || []).filter(c => c.post_id === p.id && c.status === 'approved');
@@ -446,6 +479,7 @@ export function bootPetCity() {
     });
     const sharedPost = new URLSearchParams(location.search).get('post');
     if (sharedPost) document.getElementById(`post-${sharedPost}`)?.scrollIntoView({ block: 'center' });
+    communityBusy = false;
   }
   async function applicationForm(existing) {
     if (!marketplaceReady) {open('<h2 id="dialog-title">Postulaciones en preparación</h2><p>Estamos terminando de habilitar ofertas y solicitudes reales.</p><button class="secondary" id="back-account">Volver</button>');document.querySelector('#back-account').onclick=dashboard;return;}
@@ -600,15 +634,17 @@ export function bootPetCity() {
     const btn = document.getElementById('shop-cart-btn');
     if (btn) btn.textContent = `Carrito (${(items || []).reduce((s, i) => s + i.quantity, 0)})`;
   }
+  let shopBusy = false;
   async function shopPage() {
-    setView('shop');
+    if (shopBusy) return;
+    shopBusy = true;
     const api = getClient();
     const { data: { user } } = await api.auth.getUser();
     const catalog = document.getElementById('shop-catalog');
-    if (!catalog) return;
+    if (!catalog) { shopBusy = false; return; }
     catalog.innerHTML = '<p class="fine">Cargando productos…</p>';
     const { data: products, error } = await api.from('shop_products').select('*').eq('active', true).order('name');
-    if (error) { catalog.innerHTML = `<p class="fine">${esc(error.message)}</p>`; return; }
+    if (error) { catalog.innerHTML = `<p class="fine">${esc(error.message)}</p>`; shopBusy = false; return; }
     catalog.innerHTML = (products || []).map(p => `<article class="shop-product-card" role="listitem"><div class="shop-product-art" aria-hidden="true">🛍</div><div class="shop-product-body"><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="shop-product-foot"><strong>$${Number(p.price_ars).toLocaleString('es-AR')}</strong><span class="fine">${p.stock} en stock</span><button type="button" class="primary" data-add-product="${esc(p.id)}" data-price="${p.price_ars}">Agregar</button></div></div></article>`).join('');
     if (user) {
       const { data: cartId } = await api.rpc('petcity_get_or_create_cart');
@@ -623,6 +659,7 @@ export function bootPetCity() {
       if (err) status(err.message);
       else { status('Agregado al carrito.'); refreshShopCart(); }
     });
+    shopBusy = false;
   }
   let realMapLayer;
   async function renderRealMap() {
@@ -703,7 +740,7 @@ export function bootPetCity() {
   document.querySelector('#shop-nav')?.addEventListener('click', ev => {
     ev.stopImmediatePropagation();
     ev.preventDefault();
-    shopPage();
+    setView('shop');
   }, true);
   document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(renderRealOffers,0)));
   document.querySelector('#search')?.addEventListener('submit', event => {
