@@ -332,13 +332,28 @@ export function bootPetCity() {
     const timeline=['pending','accepted','in_progress','completed'].map(s=>`<span class="timeline-step ${['pending','accepted','in_progress','completed'].indexOf(booking.status)>=['pending','accepted','in_progress','completed'].indexOf(s)?'done':''}">${esc(stateLabels[s]||s)}</span>`).join('');
     const actions=sitter&&booking.status==='accepted'?'<button class="primary" id="start-service">Iniciar servicio</button>':'';
     const actions2=sitter&&booking.status==='in_progress'?'<button class="primary" id="complete-service">Finalizar servicio</button>':'';
+    const reviewOptions = [5, 4, 3, 2, 1].map(n => `<option value="${n}">${n} estrellas</option>`).join('');
     const actions3 = owner && booking.status === 'completed'
-      ? `<form id="review-form" class="account-form"><h3>Tu reseña</h3><label>Puntuación<select name="rating" required><option value="">Elegí</option>${[5, 4, 3, 2, 1].map(n => `<option value="${n}">${n} estrellas</option>`).join('')}</select></label><label>Comentario<textarea name="body" minlength="10" maxlength="2000" required></textarea></label><button class="primary">Enviar reseña</button></form>`
+      ? '<form id="review-form" class="account-form"><h3>Tu reseña</h3><label>Puntuación<select name="rating" required>'
+        + '<option value="">Elegí</option>' + reviewOptions + '</select></label><label>Comentario<textarea name="body" minlength="10" maxlength="2000" required></textarea></label>'
+        + '<button class="primary">Enviar reseña</button></form>'
       : '';
-    const payBtn=owner&&isPaymentsEnabled()&&['accepted','payment_pending'].includes(booking.status)?`<button class="primary" id="pay-booking">${booking.status==='payment_pending'?'Reintentar pago MP':'Pagar con Mercado Pago (sandbox)'}</button>`:'';
+    const payLabel = booking.status === 'payment_pending' ? 'Reintentar pago MP' : 'Pagar con Mercado Pago (sandbox)';
+    const payBtn = owner && isPaymentsEnabled() && ['accepted', 'payment_pending'].includes(booking.status)
+      ? `<button class="primary" id="pay-booking">${payLabel}</button>`
+      : '';
     const walkStats = '<p id="walk-track-stats" class="fine walk-track-stats">Esperando puntos GPS…</p>';
-    const walk=booking.status==='in_progress'&&offer?.service==='paseo'&&sitter?`<div class="dash-tile" id="walk-track"><h3>Seguimiento del paseo</h3><p class="fine">Solo compartí ubicación durante el paseo activo. Podés detenerla cuando termines.</p><div class="walk-gps-actions"><button type="button" class="primary" id="walk-start">Activar GPS</button><button type="button" class="secondary" id="walk-stop" hidden>Detener GPS</button></div>${walkStats}<div id="walk-map" class="mapwrap walk-map-live"></div></div>':'';
-    const walkOwner=booking.status==='in_progress'&&offer?.service==='paseo'&&owner?`<div class="dash-tile"><h3>Mapa del paseo en vivo</h3><p class="fine">Se actualiza mientras el cuidador comparte ubicación.</p>${walkStats}<div id="walk-map" class="mapwrap walk-map-live"></div></div>':'';
+    const walkMapEl = '<div id="walk-map" class="mapwrap walk-map-live"></div>';
+    const walk = booking.status === 'in_progress' && offer?.service === 'paseo' && sitter
+      ? '<div class="dash-tile" id="walk-track"><h3>Seguimiento del paseo</h3><p class="fine">Solo compartí ubicación durante el paseo activo. Podés detenerla cuando termines.</p>'
+        + '<div class="walk-gps-actions"><button type="button" class="primary" id="walk-start">Activar GPS</button>'
+        + '<button type="button" class="secondary" id="walk-stop" hidden>Detener GPS</button></div>'
+        + walkStats + walkMapEl + '</div>'
+      : '';
+    const walkOwner = booking.status === 'in_progress' && offer?.service === 'paseo' && owner
+      ? '<div class="dash-tile"><h3>Mapa del paseo en vivo</h3><p class="fine">Se actualiza mientras el cuidador comparte ubicación.</p>'
+        + walkStats + walkMapEl + '</div>'
+      : '';
     const actionRow=[payBtn,actions,actions2].filter(Boolean).join('');
     fillAccountPanel(`<header class="account-panel-head service-detail-head"><div>
       <button type="button" class="secondary service-back" id="back-services">← Mis cuidados</button>

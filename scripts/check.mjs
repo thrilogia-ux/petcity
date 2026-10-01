@@ -1,12 +1,13 @@
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { Script } from 'node:vm';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 for (const file of ['public/account.js', 'public/js/core.js', 'public/js/shell.js', 'public/js/app.js']) {
   execFileSync(process.execPath, ['--check', root + file]);
 }
+await import(pathToFileURL(root + 'public/js/app.js').href);
 const html = readFileSync(root + 'public/index.html', 'utf8');
 let count = 0;
 for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
