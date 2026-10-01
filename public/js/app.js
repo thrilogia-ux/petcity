@@ -7,6 +7,8 @@ import { initShell, setView, onPetCityViewChange, syncViewFromHash } from './she
 
 export function bootPetCity() {
   initShell();
+  window.__petcitySetView = setView;
+  window.__petcitySyncHash = syncViewFromHash;
   let ensureAccountScreen = async () => {};
   onPetCityViewChange(name => {
     if (name === 'community') community();
@@ -159,6 +161,7 @@ export function bootPetCity() {
       accountScreenBusy = false;
     }
   };
+  window.__petcityOpenAccount = () => ensureAccountScreen();
   async function accountHome() {
     await ensureAccountScreen();
   }
@@ -1043,6 +1046,7 @@ export function bootPetCity() {
       void ensureAccountScreen();
     }
   });
+  window.dispatchEvent(new Event('petcity-ready'));
   document.querySelector('#become')?.addEventListener('click', event => {
     getClient().auth.getUser().then(({ data }) => {
       if (data.user) {
