@@ -17,9 +17,9 @@ Actualizado: landing + tarjetas verificadas OK; **Fase 1 E2E** = circuito solici
 | Inicio/fin servicio, reseñas | Código + **008** |
 | Agenda/capacidad | Código + **009** |
 | Mapa ofertas reales | Código + **010** |
-| Pagos MP sandbox | API Vercel + **011** + docs/PAYMENTS.md |
-| Shop persistente | Código + **012** |
-| Tracking paseo | Código + **013** |
+| Pagos MP sandbox | API Vercel + **011** + `/api/config/payments` |
+| Shop checkout | Código + **012** + **014** |
+| Tracking paseo (Fase 2) | Código + **013** — GPS activar/detener + mapa OSM |
 | Frontend modular | `public/js/core.js`, `public/js/app.js`, `public/account.js` (ES modules) |
 
 ## Pruebas
