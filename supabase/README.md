@@ -16,6 +16,7 @@ El usuario informó haber ejecutado hasta 005. Antes de tocar la base, comprobar
 11. 011_payments.sql
 12. 012_shop.sql
 13. 013_walk_tracking.sql
+14. 014_shop_submit.sql
 
 ## Proyecto nuevo / vacío
 

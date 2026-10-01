@@ -60,12 +60,24 @@ Checklist rápido:
 
 ## Fase 2 — Paseo GPS, pagos y comunidad
 
-| Paso | Dueño | Cuidador | Admin |
-|------|-------|----------|-------|
-| GPS paseo en vivo (013) | Ver mapa en servicio | Activar GPS durante paseo | — |
-| Mercado Pago sandbox (011) | Pagar tras aceptación (flag) | — | — |
-| Comunidad publicar + moderar | Post pendiente | — | Aprobar |
-| Shop pedido persistente | Carrito + checkout | — | — |
+Ejecutar migración **014_shop_submit.sql** si aún no está aplicada.
+
+| # | Paso | Quién | Dónde |
+|---|------|--------|--------|
+| 1 | Paseo **in_progress** + GPS | Cuidador | Mis cuidados → Ver servicio → **Activar GPS** / **Detener** |
+| 2 | Ver recorrido en vivo | Dueño | Mismo servicio → mapa + contador de puntos |
+| 3 | MP sandbox | Dueño | Tras aceptación → **Pagar con MP** (requiere env Vercel + `/api/config/payments` → `enabled: true`) |
+| 4 | Webhook marca **paid** | — | MP Developers → webhook → `/api/mp/webhook` |
+| 5 | Comunidad | Usuario | Comunidad → publicar → tarjeta **En revisión** |
+| 6 | Moderar post | Admin | Moderación → Revisar comunidad |
+| 7 | Shop | Dueño | Shop → carrito → **Confirmar pedido** (RPC `petcity_submit_shop_cart`) |
+
+Checklist Fase 2:
+
+- [ ] GPS: polyline + puntos en mapa OSM
+- [ ] Pago: preferencia MP solo con sesión del dueño
+- [ ] Comunidad: pending visible para autor
+- [ ] Shop: pedido `pending_payment` y stock descontado
 
 ---
 

@@ -13,13 +13,32 @@ module.exports = async function handler(req, res) {
   const { booking_id: bookingId } = req.body || {};
   if (!bookingId) return res.status(400).json({ error: 'booking_id requerido' });
 
-  const bookingRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${bookingId}&select=id,total_price_ars,status`, {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Sesión requerida' });
+  }
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!anonKey) {
+    return res.status(503).json({ error: 'Falta SUPABASE_ANON_KEY en el servidor.' });
+  }
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: anonKey },
+  });
+  if (!userRes.ok) return res.status(401).json({ error: 'Sesión inválida' });
+  const user = await userRes.json();
+  const userId = user?.id;
+  if (!userId) return res.status(401).json({ error: 'Sesión inválida' });
+
+  const bookingRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${bookingId}&select=id,owner_id,total_price_ars,status`, {
     headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
   });
   const bookings = await bookingRes.json();
   const booking = bookings?.[0];
   if (!booking || !['accepted', 'payment_pending'].includes(booking.status)) {
     return res.status(400).json({ error: 'Reserva no disponible para pago' });
+  }
+  if (booking.owner_id !== userId) {
+    return res.status(403).json({ error: 'Solo el dueño puede pagar esta reserva' });
   }
 
   const amount = Number(booking.total_price_ars);

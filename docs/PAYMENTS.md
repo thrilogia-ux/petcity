@@ -13,6 +13,7 @@
 | `MP_ACCESS_TOKEN` | API MP |
 | `SUPABASE_URL` | `https://ifvfadgcyevmsklotrql.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Solo serverless (webhook / preferencia) |
+| `SUPABASE_ANON_KEY` o `SUPABASE_PUBLISHABLE_KEY` | Validar sesión del dueño en create-preference |
 | `MP_WEBHOOK_SECRET` | Opcional: validación de firma |
 
 ## Flujo

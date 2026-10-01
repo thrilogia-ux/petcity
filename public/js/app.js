@@ -1,5 +1,5 @@
 import {
-  paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
+  isPaymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
   openModal as open, closeModal, fillAccountPanel, setServiceMessageTimer, clearServiceMessageTimer, signedPhoto, uploadPhoto,
   createMapPinIcon, formatMapPrice, serviceIcon,
 } from './core.js';
@@ -332,9 +332,10 @@ export function bootPetCity() {
     const actions3 = owner && booking.status === 'completed'
       ? `<form id="review-form" class="account-form"><h3>Tu reseña</h3><label>Puntuación<select name="rating" required><option value="">Elegí</option>${[5, 4, 3, 2, 1].map(n => `<option value="${n}">${n} estrellas</option>`).join('')}</select></label><label>Comentario<textarea name="body" minlength="10" maxlength="2000" required></textarea></label><button class="primary">Enviar reseña</button></form>`
       : '';
-    const payBtn=owner&&paymentsEnabled&&booking.status==='accepted'?'<button class="primary" id="pay-booking">Pagar con Mercado Pago (prueba)</button>':'';
-    const walk=booking.status==='in_progress'&&offer?.service==='paseo'&&sitter?'<div class="dash-tile" id="walk-track"><h3>Seguimiento del paseo</h3><p class="fine">Compartí tu ubicación solo durante el paseo.</p><button class="primary" id="walk-start">Activar GPS del paseo</button><div id="walk-map" class="mapwrap" style="height:220px;margin-top:12px"></div></div>':'';
-    const walkOwner=booking.status==='in_progress'&&offer?.service==='paseo'&&owner?'<div class="dash-tile"><h3>Mapa del paseo</h3><div id="walk-map" class="mapwrap" style="height:220px"></div><p class="fine">Se actualiza cada pocos segundos mientras el cuidador comparte ubicación.</p></div>':'';
+    const payBtn=owner&&isPaymentsEnabled()&&['accepted','payment_pending'].includes(booking.status)?`<button class="primary" id="pay-booking">${booking.status==='payment_pending'?'Reintentar pago MP':'Pagar con Mercado Pago (sandbox)'}</button>`:'';
+    const walkStats = '<p id="walk-track-stats" class="fine walk-track-stats">Esperando puntos GPS…</p>';
+    const walk=booking.status==='in_progress'&&offer?.service==='paseo'&&sitter?`<div class="dash-tile" id="walk-track"><h3>Seguimiento del paseo</h3><p class="fine">Solo compartí ubicación durante el paseo activo. Podés detenerla cuando termines.</p><div class="walk-gps-actions"><button type="button" class="primary" id="walk-start">Activar GPS</button><button type="button" class="secondary" id="walk-stop" hidden>Detener GPS</button></div>${walkStats}<div id="walk-map" class="mapwrap walk-map-live"></div></div>':'';
+    const walkOwner=booking.status==='in_progress'&&offer?.service==='paseo'&&owner?`<div class="dash-tile"><h3>Mapa del paseo en vivo</h3><p class="fine">Se actualiza mientras el cuidador comparte ubicación.</p>${walkStats}<div id="walk-map" class="mapwrap walk-map-live"></div></div>':'';
     const actionRow=[payBtn,actions,actions2].filter(Boolean).join('');
     fillAccountPanel(`<header class="account-panel-head service-detail-head"><div>
       <button type="button" class="secondary service-back" id="back-services">← Mis cuidados</button>
@@ -366,7 +367,17 @@ export function bootPetCity() {
     document.querySelector('#start-service')?.addEventListener('click',async()=>{const {error}=await api.rpc('petcity_start_service',{chosen_booking:booking.id});if(error)status(error.message);else serviceDetail({...booking,status:'in_progress'},userId);});
     document.querySelector('#complete-service')?.addEventListener('click',async()=>{const {error}=await api.rpc('petcity_complete_service',{chosen_booking:booking.id});if(error)status(error.message);else serviceDetail({...booking,status:'completed'},userId);});
     document.querySelector('#review-form')?.addEventListener('submit',async ev=>{ev.preventDefault();const f=new FormData(ev.target);const {error}=await api.rpc('petcity_submit_review',{chosen_booking:booking.id,p_rating:Number(f.get('rating')),p_body:String(f.get('body')).trim()});if(error)status(error.message);else{status('Gracias por tu reseña.');serviceDetail({...booking,status:'completed'},userId);}});
-    document.querySelector('#pay-booking')?.addEventListener('click',async()=>{try{const res=await fetch('/api/mp/create-preference',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({booking_id:booking.id})});const data=await res.json();if(!res.ok)throw new Error(data.error||'No se pudo iniciar el pago');if(data.init_point)location.href=data.init_point;else status('Preferencia creada (sandbox).');}catch(e){status(e.message);}});
+    document.querySelector('#pay-booking')?.addEventListener('click',async()=>{
+      try{
+        const { data: { session } } = await api.auth.getSession();
+        if (!session?.access_token) throw new Error('Ingresá de nuevo para pagar.');
+        const res=await fetch('/api/mp/create-preference',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({booking_id:booking.id})});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.error||'No se pudo iniciar el pago');
+        if(data.init_point)location.href=data.init_point;
+        else status('Preferencia creada (sandbox).');
+      }catch(e){status(e.message);}
+    });
     initWalkTracking(booking,userId,sitter,offer?.service==='paseo');
   }
   async function serviceMessages(booking,userId) {
@@ -448,7 +459,12 @@ export function bootPetCity() {
     }
     feed.innerHTML = '<p class="fine ig-loading">Cargando historias…</p>';
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: posts, error } = await api.from('community_posts').select('*').eq('status', 'approved').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(40);
+    const [{ data: posts, error }, pendingRes] = await Promise.all([
+      api.from('community_posts').select('*').eq('status', 'approved').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(40),
+      auth.user
+        ? api.from('community_posts').select('id,caption,photo_path,created_at').eq('author_id', auth.user.id).eq('status', 'pending').order('created_at', { ascending: false }).limit(10)
+        : Promise.resolve({ data: [] }),
+    ]);
     if (error) { feed.innerHTML = `<p class="fine">${esc(error.message)}</p>`; communityBusy = false; return; }
     const postIds = (posts || []).map(p => p.id);
     const [{ data: likes }, { data: comments }] = await Promise.all([
@@ -468,7 +484,10 @@ export function bootPetCity() {
     const demoCards = (posts || []).length < 3 ? examples.map(item =>
       `<article class="ig-post ig-post-demo"><header class="ig-post-head"><span class="ig-avatar">✦</span><div><strong>Ejemplo PetCity</strong><span class="community-example">Simulación</span></div></header><div class="ig-post-media"><img src="/${item.image}" alt="${esc(item.title)}" loading="lazy"></div><p class="ig-caption"><strong>${esc(item.title)}</strong> ${esc(item.caption)}</p></article>`
     ).join('') : '';
-    feed.innerHTML = (posts || []).map(igPost).join('') + demoCards;
+    const pendingCards = (pendingRes.data || []).map(p =>
+      `<article class="ig-post ig-post-pending"><header class="ig-post-head"><span class="ig-avatar">⏳</span><div><strong>Tu publicación</strong><span class="community-pending-badge">En revisión</span></div></header><div class="ig-post-media" data-post-photo="${esc(p.photo_path || '')}"></div><p class="ig-caption">${esc(p.caption)}</p><p class="fine">PetCity la mostrará acá cuando un admin la apruebe.</p></article>`,
+    ).join('');
+    feed.innerHTML = pendingCards + (posts || []).map(igPost).join('') + demoCards;
     document.querySelectorAll('[data-post-photo]').forEach(async node => {
       if (!node.dataset.postPhoto) return;
       const url = await signedPhoto(node.dataset.postPhoto);
@@ -688,25 +707,69 @@ export function bootPetCity() {
       }
     }
   }
-  function initWalkTracking(booking,userId,isSitter,isWalk) {
-    if(!isWalk||!document.querySelector('#walk-map'))return;
-    const mapEl=document.querySelector('#walk-map');
-    let map=L.map(mapEl).setView([-34.6037,-58.3816],13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    let watchId;
-    const draw=async()=>{
-      const {data}=await getClient().from('walk_track_points').select('lat,lng,recorded_at').eq('booking_id',booking.id).order('recorded_at',{ascending:true});
-      if(data?.length){const latlngs=data.map(p=>[p.lat,p.lng]);L.polyline(latlngs,{color:'#176b60'}).addTo(map);map.fitBounds(latlngs);}
+  function initWalkTracking(booking, userId, isSitter, isWalk) {
+    if (!isWalk || !window.L) return;
+    const mapEl = document.querySelector('#walk-map');
+    if (!mapEl) return;
+    const map = L.map(mapEl, { scrollWheelZoom: false }).setView([-34.587, -58.43], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OSM' }).addTo(map);
+    const routeLayer = L.layerGroup().addTo(map);
+    let headMarker = null;
+    let watchId = null;
+    const statsEl = document.querySelector('#walk-track-stats');
+    const draw = async () => {
+      const { data, error } = await getClient().from('walk_track_points')
+        .select('lat,lng,recorded_at').eq('booking_id', booking.id).order('recorded_at', { ascending: true });
+      if (error || !data?.length) {
+        if (statsEl && !error) statsEl.textContent = 'Todavía no hay puntos en el recorrido.';
+        return;
+      }
+      routeLayer.clearLayers();
+      const latlngs = data.map(p => [p.lat, p.lng]);
+      L.polyline(latlngs, { color: '#176b60', weight: 5, opacity: 0.9 }).addTo(routeLayer);
+      const last = latlngs[latlngs.length - 1];
+      if (headMarker) headMarker.remove();
+      headMarker = L.circleMarker(last, { radius: 9, color: '#fff', weight: 2, fillColor: '#173e3a', fillOpacity: 1 }).addTo(map);
+      map.fitBounds(latlngs, { padding: [28, 28], maxZoom: 16 });
+      if (statsEl) {
+        statsEl.textContent = `${data.length} punto${data.length === 1 ? '' : 's'} · último ${new Date(data[data.length - 1].recorded_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      setTimeout(() => map.invalidateSize(), 120);
     };
-    draw();const poll=setInterval(draw,8000);
-    document.querySelector('#walk-start')?.addEventListener('click',()=>{
-      if(!navigator.geolocation){status('Tu navegador no soporta geolocalización.');return;}
-      watchId=navigator.geolocation.watchPosition(async pos=>{
-        await getClient().rpc('petcity_record_walk_point',{chosen_booking:booking.id,p_lat:pos.coords.latitude,p_lng:pos.coords.longitude});
-      },()=>status('No pudimos acceder a la ubicación.'),{enableHighAccuracy:true,maximumAge:10000});
+    draw();
+    const poll = setInterval(draw, 5000);
+    const startBtn = document.querySelector('#walk-start');
+    const stopBtn = document.querySelector('#walk-stop');
+    startBtn?.addEventListener('click', () => {
+      if (!isSitter) return;
+      if (!navigator.geolocation) { status('Tu navegador no soporta geolocalización.'); return; }
+      if (watchId != null) return;
+      watchId = navigator.geolocation.watchPosition(async pos => {
+        await getClient().rpc('petcity_record_walk_point', {
+          chosen_booking: booking.id,
+          p_lat: pos.coords.latitude,
+          p_lng: pos.coords.longitude,
+        });
+        draw();
+      }, () => status('No pudimos acceder a la ubicación. Revisá permisos.'), { enableHighAccuracy: true, maximumAge: 8000, timeout: 20000 });
+      startBtn.hidden = true;
+      if (stopBtn) stopBtn.hidden = false;
       status('Compartiendo ubicación del paseo…');
     });
-    setServiceMessageTimer(setInterval(()=>{if(!document.querySelector('#walk-map')?.isConnected){clearServiceMessageTimer();clearInterval(poll);if(watchId)navigator.geolocation.clearWatch(watchId);}},3000));
+    stopBtn?.addEventListener('click', () => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      if (startBtn) startBtn.hidden = false;
+      stopBtn.hidden = true;
+      status('Dejaste de compartir ubicación.');
+    });
+    setServiceMessageTimer(setInterval(() => {
+      if (!document.querySelector('#walk-map')?.isConnected) {
+        clearServiceMessageTimer();
+        clearInterval(poll);
+        if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      }
+    }, 3000));
   }
   let shopCartId = null;
   async function refreshShopCart() {
@@ -720,10 +783,28 @@ export function bootPetCity() {
     const { data: items } = await getClient().from('shop_order_items').select('quantity,unit_price_ars,shop_products(name)').eq('order_id', shopCartId);
     const total = (items || []).reduce((s, i) => s + i.quantity * i.unit_price_ars, 0);
     body.innerHTML = items?.length
-      ? `<ul class="shop-cart-list">${items.map(i => `<li><span>${esc(i.shop_products.name)}</span><span>× ${i.quantity}</span><strong>$${(i.quantity * i.unit_price_ars).toLocaleString('es-AR')}</strong></li>`).join('')}</ul><div class="shop-cart-total"><span>Total</span><strong>$${total.toLocaleString('es-AR')}</strong></div><p class="fine">Checkout con Mercado Pago (próximamente).</p>`
+      ? `<ul class="shop-cart-list">${items.map(i => `<li><span>${esc(i.shop_products.name)}</span><span>× ${i.quantity}</span><strong>$${(i.quantity * i.unit_price_ars).toLocaleString('es-AR')}</strong></li>`).join('')}</ul><div class="shop-cart-total"><span>Total</span><strong>$${total.toLocaleString('es-AR')}</strong></div><button type="button" class="primary shop-checkout-btn" id="shop-checkout">Confirmar pedido</button><p class="fine">El pedido queda en estado pendiente de pago. Te contactamos para coordinar envío.</p>`
       : '<p class="fine">Tu carrito está vacío.</p>';
+    body.querySelector('#shop-checkout')?.addEventListener('click', shopCheckout);
     const btn = document.getElementById('shop-cart-btn');
     if (btn) btn.textContent = `Carrito (${(items || []).reduce((s, i) => s + i.quantity, 0)})`;
+  }
+  async function shopCheckout() {
+    const api = getClient();
+    const { data: { user } } = await api.auth.getUser();
+    if (!user) return login();
+    const button = document.querySelector('#shop-checkout');
+    if (button) button.disabled = true;
+    const { data: newCartId, error } = await api.rpc('petcity_submit_shop_cart');
+    if (error) {
+      status(error.message);
+      if (button) button.disabled = false;
+      return;
+    }
+    shopCartId = newCartId;
+    status('Pedido registrado. Revisá tu email o Mis datos para el seguimiento.');
+    await refreshShopCart();
+    await shopPage();
   }
   let shopBusy = false;
   async function shopPage() {
@@ -872,7 +953,7 @@ export function bootPetCity() {
           </div>
         </div>
       </article>`).join('') : '<p class="empty-state">No hay ofertas aprobadas con esos filtros.</p>'}</div>
-      <p class="fine">${paymentsEnabled?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
+      <p class="fine">${isPaymentsEnabled()?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
     offersSection.querySelectorAll('[data-save-offer]').forEach(button => {
@@ -947,6 +1028,9 @@ export function bootPetCity() {
       renderRealOffers();
     }
   }, true);
+  fetch('/api/config/payments').then(r => (r.ok ? r.json() : {})).then(j => {
+    if (j?.enabled) window.PETCITY_PAYMENTS = true;
+  }).catch(() => {});
   refreshRealOffers();
   window.petcityDemoRender?.();
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);

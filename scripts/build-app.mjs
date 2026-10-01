@@ -6,7 +6,7 @@ let s = readFileSync(root + 'public/account.js', 'utf8');
 s = s.replace(/^\/\*[\s\S]*?\*\/\n\(\(\) => \{\n/, '');
 s = s.replace(/\n\}\)\(\);\s*$/, '');
 const header = `import {
-  paymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
+  isPaymentsEnabled, serviceLabels, stateLabels, getClient, esc, status,
   openModal as open, setServiceMessageTimer, signedPhoto, uploadPhoto,
 } from './core.js';
 

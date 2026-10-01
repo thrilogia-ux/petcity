@@ -1,6 +1,8 @@
 export const projectUrl = 'https://ifvfadgcyevmsklotrql.supabase.co';
 export const publishableKey = 'sb_publishable_5Y2umR15QdQZ5GzreS0sog_CGFsglFX';
-export const paymentsEnabled = typeof window !== 'undefined' && window.PETCITY_PAYMENTS === true;
+export function isPaymentsEnabled() {
+  return typeof window !== 'undefined' && window.PETCITY_PAYMENTS === true;
+}
 
 export const serviceLabels = {
   paseo: 'Paseos',
