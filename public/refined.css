@@ -219,6 +219,16 @@ body.app-mode main#guest-main{display:none}
 .account-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--pc-line)}
 .account-panel-head h2{margin:6px 0 0}
 .account-panel-body .dash-tile{border:1px solid var(--pc-line);padding:18px;margin:12px 0}
+.service-detail-body{display:grid;gap:18px}
+.service-detail-body>.dash-tile,.service-detail-body>.account-form{margin:0}
+.service-detail-head h2{margin-top:6px}
+.service-back{margin-bottom:0;padding:8px 14px}
+.service-detail-summary p{margin:0 0 6px}
+.service-detail-price{margin:8px 0 0!important;font-size:22px;font-weight:800;color:var(--pc-ink)}
+.service-detail-actions{display:flex;flex-wrap:wrap;gap:10px}
+.care-update-row{border-bottom:1px solid var(--pc-line);padding:12px 0}
+.care-update-row:last-child{border-bottom:0;padding-bottom:0}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .account-status-bar{min-height:1.25em;color:var(--pc-accent);font-size:14px;margin-top:12px}
 
 /* —— Shop e-commerce —— */

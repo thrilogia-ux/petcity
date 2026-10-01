@@ -306,13 +306,24 @@ export function bootPetCity() {
       }catch(error){status(error.message);button.disabled=false;}
     };
   }
+  function openServicesHub() {
+    closeModal();
+    accountTab = 'services';
+    setView('account', true);
+    void dashboard();
+  }
   async function serviceDetail(booking,userId) {
+    closeModal();
+    setView('account');
+    accountTab = 'services';
     const api=getClient();
-    const [{data:offer},{data:pet},{data:updates,error}]=await Promise.all([
+    const [{data:offer},{data:pet},{data:updates,error},{data:isAdmin}]=await Promise.all([
       api.from('sitter_offers').select('service,unit,sitter_applications(public_name)').eq('id',booking.offer_id).single(),
       api.from('pets').select('name,care_notes').eq('id',booking.pet_id).maybeSingle(),
-      api.from('care_updates').select('id,message,photo_path,created_at').eq('booking_id',booking.id).order('created_at',{ascending:false})
+      api.from('care_updates').select('id,message,photo_path,created_at').eq('booking_id',booking.id).order('created_at',{ascending:false}),
+      api.rpc('petcity_is_admin'),
     ]);
+    renderAccountSidebar(Boolean(isAdmin));
     const sitter=booking.owner_id!==userId;
     const owner=!sitter;
     const timeline=['pending','accepted','in_progress','completed'].map(s=>`<span class="timeline-step ${['pending','accepted','in_progress','completed'].indexOf(booking.status)>=['pending','accepted','in_progress','completed'].indexOf(s)?'done':''}">${esc(stateLabels[s]||s)}</span>`).join('');
@@ -324,16 +335,31 @@ export function bootPetCity() {
     const payBtn=owner&&paymentsEnabled&&booking.status==='accepted'?'<button class="primary" id="pay-booking">Pagar con Mercado Pago (prueba)</button>':'';
     const walk=booking.status==='in_progress'&&offer?.service==='paseo'&&sitter?'<div class="dash-tile" id="walk-track"><h3>Seguimiento del paseo</h3><p class="fine">Compartí tu ubicación solo durante el paseo.</p><button class="primary" id="walk-start">Activar GPS del paseo</button><div id="walk-map" class="mapwrap" style="height:220px;margin-top:12px"></div></div>':'';
     const walkOwner=booking.status==='in_progress'&&offer?.service==='paseo'&&owner?'<div class="dash-tile"><h3>Mapa del paseo</h3><div id="walk-map" class="mapwrap" style="height:220px"></div><p class="fine">Se actualiza cada pocos segundos mientras el cuidador comparte ubicación.</p></div>':'';
-    open(`<div class="eyebrow">MI SERVICIO</div><h2 id="dialog-title">${esc(serviceLabels[offer?.service]||'Cuidado de mascotas')}</h2>
+    const actionRow=[payBtn,actions,actions2].filter(Boolean).join('');
+    fillAccountPanel(`<header class="account-panel-head service-detail-head"><div>
+      <button type="button" class="secondary service-back" id="back-services">← Mis cuidados</button>
+      <div class="eyebrow" style="margin-top:14px">MI SERVICIO</div>
+      <h2 id="dialog-title">${esc(serviceLabels[offer?.service]||'Cuidado de mascotas')}</h2>
+    </div></header>
+    <div class="account-panel-body service-detail-body">
       <div class="service-timeline">${timeline}</div>
-      <p><strong>${esc(pet?.name||'Mascota')}</strong> · ${esc(offer?.sitter_applications?.public_name||'Cuidador')} · ${esc(stateLabels[booking.status]||booking.status)}</p>
-      <p>${esc(booking.start_date)}${booking.end_date!==booking.start_date?' al '+esc(booking.end_date):''} · $${Number(booking.total_price_ars).toLocaleString('es-AR')}</p>
-      ${payBtn}${actions}${actions2}${sitter&&pet?.care_notes?`<p>Indicaciones: ${esc(pet.care_notes)}</p>`:''}
-      <div class="dash-tile"><h3>Novedades y fotos</h3>${error?'<p>Las novedades se habilitarán tras aplicar migraciones en Supabase.</p>':updates.length?updates.map(u=>`<div style="border-bottom:1px solid #dfe7df;padding:12px 0"><small>${new Date(u.created_at).toLocaleString('es-AR')}</small><p>${esc(u.message)}</p><div data-update-photo="${esc(u.photo_path||'')}"></div></div>`).join(''):'<p>El cuidador todavía no compartió novedades.</p>'}</div>
-      ${sitter&&['accepted','in_progress'].includes(booking.status)&&!error?'<form id="care-update-form" class="account-form"><h3>Compartir novedad</h3><label>Mensaje<textarea name="message" maxlength="1000" required placeholder="Contale al dueño cómo va el cuidado"></textarea></label><label>Foto opcional<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="primary">Publicar novedad</button></form>':''}
-      ${walk}${walkOwner}${actions3}<p id="account-status" role="status"></p><button class="secondary" id="back-account">Volver a mis cuidados</button>`);
-    document.querySelector('#back-account').onclick=()=>{accountTab='services';dashboard();};
-    document.querySelector('#back-account').insertAdjacentHTML('beforebegin',`<section class="dash-tile" style="margin:18px 0"><h3>Mensajes del servicio</h3><p class="fine">Conversación privada entre el dueño y el cuidador.</p><div id="service-messages" class="message-list" aria-label="Mensajes del servicio">Cargando conversación…</div><form id="service-message-form" class="chat-form" hidden><label for="service-message-input" style="position:absolute;width:1px;height:1px;overflow:hidden">Tu mensaje</label><input id="service-message-input" name="body" maxlength="2000" required placeholder="Coordiná horarios o consultá cómo va el cuidado" autocomplete="off"><button class="primary" type="submit">Enviar</button></form><p id="service-message-status" class="fine" role="status" aria-live="polite"></p></section>`);
+      <div class="service-detail-summary dash-tile">
+        <p><strong>${esc(pet?.name||'Mascota')}</strong> · ${esc(offer?.sitter_applications?.public_name||'Cuidador')}</p>
+        <p class="fine">${esc(stateLabels[booking.status]||booking.status)} · ${esc(booking.start_date)}${booking.end_date!==booking.start_date?' al '+esc(booking.end_date):''}</p>
+        <p class="service-detail-price">$${Number(booking.total_price_ars).toLocaleString('es-AR')}</p>
+      </div>
+      ${actionRow?`<div class="service-detail-actions">${actionRow}</div>`:''}
+      ${sitter&&pet?.care_notes?`<div class="dash-tile"><h3>Indicaciones del dueño</h3><p>${esc(pet.care_notes)}</p></div>`:''}
+      <section class="dash-tile"><h3>Mensajes del servicio</h3><p class="fine">Coordinación privada entre dueño y cuidador.</p>
+        <div id="service-messages" class="message-list" aria-label="Mensajes del servicio">Cargando conversación…</div>
+        <form id="service-message-form" class="chat-form" hidden><label for="service-message-input" class="visually-hidden">Tu mensaje</label><input id="service-message-input" name="body" maxlength="2000" required placeholder="Coordiná horarios o consultá cómo va el cuidado" autocomplete="off"><button class="primary" type="submit">Enviar</button></form>
+        <p id="service-message-status" class="fine" role="status" aria-live="polite"></p>
+      </section>
+      <div class="dash-tile"><h3>Novedades y fotos</h3>${error?'<p>Las novedades se habilitarán tras aplicar migraciones en Supabase.</p>':updates.length?updates.map(u=>`<div class="care-update-row"><small>${new Date(u.created_at).toLocaleString('es-AR')}</small><p>${esc(u.message)}</p><div data-update-photo="${esc(u.photo_path||'')}"></div></div>`).join(''):'<p>El cuidador todavía no compartió novedades.</p>'}</div>
+      ${sitter&&['accepted','in_progress'].includes(booking.status)&&!error?'<form id="care-update-form" class="account-form dash-tile"><h3>Compartir novedad</h3><label>Mensaje<textarea name="message" maxlength="1000" required placeholder="Contale al dueño cómo va el cuidado"></textarea></label><label>Foto opcional<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label><button class="primary">Publicar novedad</button></form>':''}
+      ${walk}${walkOwner}${actions3}
+    </div>`);
+    document.querySelector('#back-services')?.addEventListener('click', () => openServicesHub());
     await serviceMessages(booking,userId);
     document.querySelectorAll('[data-update-photo]').forEach(async node=>{const url=await signedPhoto(node.dataset.updatePhoto);if(url)node.innerHTML=`<img src="${esc(url)}" alt="Foto de la novedad" style="max-width:100%;border-radius:16px">`;});
     document.querySelector('#care-update-form')?.addEventListener('submit',async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;try{const form=new FormData(event.target);const path=await uploadPhoto(form.get('photo'),`care/${booking.id}`);const {error:saveError}=await api.from('care_updates').insert({booking_id:booking.id,sitter_id:userId,message:String(form.get('message')).trim(),photo_path:path});if(saveError)throw saveError;serviceDetail(booking,userId);}catch(e){status(e.message);button.disabled=false;}});
@@ -391,7 +417,7 @@ export function bootPetCity() {
       finally{button.disabled=false;}
     };
     setServiceMessageTimer(setInterval(()=>{
-      if(!list.isConnected||!document.querySelector('#overlay').classList.contains('open')){clearServiceMessageTimer();return;}
+      if(!list.isConnected){clearServiceMessageTimer();return;}
       if(!document.hidden)refresh();
     },8000));
   }
@@ -680,7 +706,7 @@ export function bootPetCity() {
       },()=>status('No pudimos acceder a la ubicación.'),{enableHighAccuracy:true,maximumAge:10000});
       status('Compartiendo ubicación del paseo…');
     });
-    setServiceMessageTimer(setInterval(()=>{if(!document.querySelector('#overlay').classList.contains('open')){clearServiceMessageTimer();clearInterval(poll);if(watchId)navigator.geolocation.clearWatch(watchId);}},3000));
+    setServiceMessageTimer(setInterval(()=>{if(!document.querySelector('#walk-map')?.isConnected){clearServiceMessageTimer();clearInterval(poll);if(watchId)navigator.geolocation.clearWatch(watchId);}},3000));
   }
   let shopCartId = null;
   async function refreshShopCart() {
@@ -898,7 +924,12 @@ export function bootPetCity() {
       event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
       const form=new FormData(event.target),start=String(form.get('start')),end=overnight?String(form.get('end')):start;
       const {error:requestError}=await api.rpc('petcity_request_booking',{chosen_offer:offer.id,chosen_pet:form.get('pet'),requested_start:start,requested_end:end});
-      if(requestError){status(requestError.message);button.disabled=false;}else {open('<div class="eyebrow">SOLICITUD ENVIADA</div><h2 id="dialog-title">Esperando respuesta del cuidador</h2><p>Podés seguirla en Mi perfil. Todavía no se realizó ningún pago.</p><button class="primary" id="go-account">Ver mi perfil</button>');document.querySelector('#go-account').onclick=dashboard;}
+      if(requestError){status(requestError.message);button.disabled=false;}else {
+        open(`<div class="eyebrow">SOLICITUD ENVIADA</div><h2 id="dialog-title">Esperando respuesta del cuidador</h2>
+          <p>El cuidador la verá en <strong>Mis cuidados</strong>. Todavía no se realizó ningún pago.</p>
+          <button type="button" class="primary" id="go-account">Ir a Mis cuidados</button>`);
+        document.querySelector('#go-account').onclick=openServicesHub;
+      }
     };
   }
   document.querySelector('#shop-nav')?.addEventListener('click', ev => {

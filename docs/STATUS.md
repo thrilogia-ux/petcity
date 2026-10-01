@@ -1,6 +1,6 @@
 # Estado verificable de PetCity
 
-Actualizado tras plan “mejora 200%” (código en repo; migraciones 006–013 **pendientes de ejecutar** en Supabase remoto salvo confirmación del usuario).
+Actualizado: landing + tarjetas verificadas OK; **Fase 1 E2E** = circuito solicitud → reseña (ver [E2E.md](E2E.md)). Migraciones 006–013 aplicadas en entorno de prueba del usuario.
 
 ## Desplegado
 

@@ -31,6 +31,46 @@ join auth.users u on u.id = a.user_id
 where u.email = 'thrilogia@gmail.com';
 ```
 
+---
+
+## Fase 1 — Circuito de cuidado (prioridad)
+
+Objetivo: un paseo real de punta a punta sin pagos (Fase 2).
+
+| # | Paso | Quién | Dónde en la app |
+|---|------|--------|-----------------|
+| 1 | Ver oferta verificada + mapa | Anónimo | Home → tarjeta / pin |
+| 2 | Login dueño + mascota cargada | `dario@thrilogia.com` | Mi perfil → Mis mascotas |
+| 3 | **Solicitar cuidado** (fecha + mascota) | Dueño | Solicitar cuidado → **Mis cuidados** |
+| 4 | **Aceptar** solicitud | `thrilogia@hotmail.com` | Mis cuidados → Aceptar |
+| 5 | **Chat** del servicio | Ambos | Ver servicio → Mensajes |
+| 6 | **Novedad** con foto (opcional) | Cuidador | Ver servicio → Compartir novedad |
+| 7 | **Iniciar** → **Finalizar** servicio | Cuidador | Ver servicio |
+| 8 | **Reseña** verificada | Dueño | Ver servicio (completado) |
+
+Checklist rápido:
+
+- [ ] 1–3 Dueño solicita paseo a cuidador aprobado
+- [ ] 4 Cuidador acepta
+- [ ] 5 Chat ida y vuelta
+- [ ] 6–7 Ciclo in_progress → completed
+- [ ] 8 Reseña visible en ficha pública (★ en tarjeta)
+
+---
+
+## Fase 2 — Paseo GPS, pagos y comunidad
+
+| Paso | Dueño | Cuidador | Admin |
+|------|-------|----------|-------|
+| GPS paseo en vivo (013) | Ver mapa en servicio | Activar GPS durante paseo | — |
+| Mercado Pago sandbox (011) | Pagar tras aceptación (flag) | — | — |
+| Comunidad publicar + moderar | Post pendiente | — | Aprobar |
+| Shop pedido persistente | Carrito + checkout | — | — |
+
+---
+
+## Matriz general
+
 | Paso | Dueño | Cuidador | Admin | Anónimo |
 |------|-------|----------|-------|---------|
 | Ver ofertas aprobadas | — | — | — | OK esperado |
