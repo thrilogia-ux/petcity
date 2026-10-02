@@ -229,6 +229,14 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
 #real-offers .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
+.my-active-care-block{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--pc-line)}
+.my-active-care-label{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--pc-accent)}
+.card-my-active-care,.card-offer-active-care{background:linear-gradient(160deg,#f3fbf8 0%,#fff 55%);border-color:#c5e8de}
+.card-my-active-care .cardbody-full{padding:4px 2px}
+.badge-active-care{display:inline-block;background:#d4f0e8;color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600}
+.badge-active-care-inline{margin-bottom:0}
+.card-offer-active-care .badge-verified{display:none}
+.map.real-ready.map-verified-only:after{content:'Cuidadores verificados · OpenStreetMap'}
 body.app-mode main#guest-main{display:none}
 #petcity-app{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,48px) 48px}
 

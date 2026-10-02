@@ -916,6 +916,7 @@ export function bootPetCity() {
       return;
     }
     layer.clearLayers();
+    const activeOfferIds = new Set(activeCareBookings.map(b => b.offer_id));
     const { data, error } = await getClient().rpc('petcity_list_approved_offers_map');
     if (error || !data?.length) return;
     const offersById = Object.fromEntries(realOffers.map(o => [o.id, o]));
@@ -925,7 +926,7 @@ export function bootPetCity() {
       const icon = createMapPinIcon(L, {
         serviceKey: row.service,
         price: row.price_ars,
-        active: false,
+        active: activeOfferIds.has(row.offer_id),
       });
       if (!icon) continue;
       const pos = [row.lat, row.lng];
@@ -939,6 +940,7 @@ export function bootPetCity() {
   const demoMode=new URLSearchParams(location.search).has('demo');
   if(demoMode)document.body.classList.add('demo-mode');
   let realOffers=[];
+  let activeCareBookings = [];
   let searchedPlace='';
   const REAL_SAVED_KEY = 'petcity-saved-offers';
   const realSavedOffers = new Set(JSON.parse(localStorage.getItem(REAL_SAVED_KEY) || '[]'));
@@ -971,24 +973,42 @@ export function bootPetCity() {
       const collapsed = wrap.classList.toggle('is-collapsed');
       panel.hidden = collapsed;
       wrap.querySelector('.demo-explore-toggle').setAttribute('aria-expanded', String(!collapsed));
+      syncDemoMapWithList();
     });
+  }
+  function syncDemoMapWithList() {
+    const wrap = document.getElementById('demo-explore-block');
+    const demoListOpen = !wrap || !wrap.classList.contains('is-collapsed');
+    const showDemoOnMap = demoMode || !realOffers.length || demoListOpen;
+    if (window.petcityDemoMapLayer) {
+      if (showDemoOnMap) window.petcityDemoRender?.();
+      else window.petcityDemoMapLayer.clearLayers();
+    }
+    const pins = document.getElementById('pins');
+    if (pins) pins.style.display = showDemoOnMap ? '' : 'none';
+    const mapShell = document.querySelector('#map-shell');
+    if (mapShell) mapShell.classList.toggle('map-verified-only', realOffers.length > 0 && !showDemoOnMap);
   }
   function updateDemoExploreVisibility() {
     const wrap = document.getElementById('demo-explore-block');
     if (!wrap) return;
     const panel = wrap.querySelector('.demo-explore-panel');
     const toggle = wrap.querySelector('.demo-explore-toggle');
+    const hint = wrap.querySelector('.demo-explore-hint');
     const hasReal = realOffers.length > 0;
     document.body.classList.toggle('has-verified-offers', hasReal);
     if (demoMode || !hasReal) {
       wrap.classList.remove('is-collapsed');
       if (panel) panel.hidden = false;
       toggle?.setAttribute('aria-expanded', 'true');
+      if (hint) hint.textContent = 'Solo demostración · no son reservas reales';
     } else {
       wrap.classList.add('is-collapsed');
       if (panel) panel.hidden = true;
       toggle?.setAttribute('aria-expanded', 'false');
+      if (hint) hint.textContent = 'Tocá para ver perfiles de ejemplo en la lista (el mapa muestra solo verificados)';
     }
+    syncDemoMapWithList();
   }
   function offersLoadingHtml() {
     return `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">Cargando cuidadores…</h3></div><div class="skeleton-cards" aria-hidden="true">${[1, 2].map(() => '<div class="skeleton-card"><div class="skeleton-photo"></div><div class="skeleton-lines"><span></span><span></span><span></span></div></div>').join('')}</div>`;
@@ -1030,18 +1050,50 @@ export function bootPetCity() {
       rating_count: ratings[o.application_id]?.rating_count ?? o.rating_count,
     }));
   }
+  function activeCareByOfferId() {
+    return Object.fromEntries(activeCareBookings.map(b => [b.offer_id, b]));
+  }
+  function renderActiveCareLandingCard(b) {
+    const sitter = b.sitter_offers?.sitter_applications?.public_name || 'Cuidador';
+    const service = serviceLabels[b.sitter_offers?.service] || b.sitter_offers?.service || 'Servicio';
+    const status = stateLabels[b.status] || b.status;
+    return `<article class="card card-sitter-real card-my-active-care">
+      <div class="cardbody cardbody-full">
+        <div class="card-sitter-head">
+          <span class="badge-active-care">Tu servicio · ${esc(status)}</span>
+        </div>
+        <div class="cardrow"><span class="name">${esc(sitter)}</span></div>
+        <p class="muted">${esc(service)} · ${esc(b.start_date)}${b.end_date !== b.start_date ? ' al ' + esc(b.end_date) : ''}</p>
+        <p class="fine">Seguí novedades, chat y mapa del paseo desde el detalle del servicio.</p>
+        <div class="cardfoot cardfoot-verified">
+          <button type="button" class="primary" data-open-active-booking="${esc(b.id)}">Ver servicio</button>
+        </div>
+      </div>
+    </article>`;
+  }
   function renderRealOffers() {
     if (!realOffers.length) return;
     const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
     const savedOnly = document.querySelector('#saved-toggle')?.getAttribute('aria-pressed') === 'true';
     const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace))&&(!savedOnly||realSavedOffers.has(o.id)));
+    const careByOffer = activeCareByOfferId();
+    const shownOfferIds = new Set(shown.map(o => o.id));
+    const activeNotInList = activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
     const serviceLabel = o => esc(serviceLabels[o.service] || o.service);
-    offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} cuidador${shown.length===1?'':'es'} real${shown.length===1?'':'es'}</h3></div>
-      <div class="cards real-offer-cards">${shown.length ? shown.map(o => `<article class="card card-sitter-real">
+    offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length===1?'':'s'} verificada${shown.length===1?'':'s'}</h3></div>
+      ${activeNotInList.length ? `<div class="my-active-care-block"><p class="my-active-care-label">Tus servicios activos (otros filtros)</p><div class="cards real-offer-cards">${activeNotInList.map(renderActiveCareLandingCard).join('')}</div></div>` : ''}
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => {
+        const booking = careByOffer[o.id];
+        const activeCls = booking ? ' card-offer-active-care' : '';
+        const primaryBtn = booking
+          ? `<button type="button" class="primary" data-open-active-booking="${esc(booking.id)}">Ver tu servicio</button>`
+          : `<button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>`;
+        const activeBadge = booking ? `<span class="badge-active-care badge-active-care-inline">Tu servicio · ${esc(stateLabels[booking.status] || booking.status)}</span>` : '';
+        return `<article class="card card-sitter-real${activeCls}">
         <img class="portrait" src="${esc(sitterCardPhotoPlaceholder(o.public_name))}" alt="Foto de ${esc(o.public_name)}" width="126" height="142" loading="lazy"${o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : ''}>
         <div class="cardbody">
           <div class="card-sitter-head">
-            <span class="badge-verified">Verificado</span>
+            ${activeBadge || '<span class="badge-verified">Verificado</span>'}
             <div class="card-sitter-tools">
               ${formatCardRating(o)}
               <button type="button" class="save-heart${realSavedOffers.has(o.id) ? ' is-saved' : ''}" data-save-offer="${esc(o.id)}" aria-label="${realSavedOffers.has(o.id) ? 'Quitar de guardados' : 'Guardar cuidador'}" aria-pressed="${realSavedOffers.has(o.id)}"><span aria-hidden="true">${realSavedOffers.has(o.id) ? '♥' : '♡'}</span></button>
@@ -1056,14 +1108,25 @@ export function bootPetCity() {
               <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
               <div class="cardfoot-actions-row">
                 <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
-                <button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>
+                ${primaryBtn}
               </div>
             </div>
           </div>
         </div>
-      </article>`).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
+      </article>`;
+      }).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
       <p class="fine">${isPaymentsEnabled()?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
+    offersSection.querySelectorAll('[data-open-active-booking]').forEach(button => {
+      button.onclick = async () => {
+        const booking = activeCareBookings.find(b => b.id === button.dataset.openActiveBooking);
+        if (!booking) return;
+        const { data: { user } } = await getClient().auth.getUser();
+        if (!user) return login();
+        accountTab = 'services';
+        await serviceDetail(booking, user.id);
+      };
+    });
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
     offersSection.querySelectorAll('[data-save-offer]').forEach(button => {
       button.onclick = event => {
@@ -1108,6 +1171,18 @@ export function bootPetCity() {
         return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
       });
       realOffers = await attachSitterRatings(realOffers);
+      activeCareBookings = [];
+      try {
+        const { data: { user } } = await getClient().auth.getUser();
+        if (user) {
+          const { data: careRows } = await getClient().from('bookings')
+            .select('id,status,offer_id,owner_id,pet_id,start_date,end_date,total_price_ars,sitter_offers(id,service,unit,sitter_applications(public_name,city))')
+            .eq('owner_id', user.id)
+            .in('status', ['accepted', 'in_progress', 'payment_pending'])
+            .order('start_date', { ascending: false });
+          activeCareBookings = careRows || [];
+        }
+      } catch { /* sin sesión o RLS */ }
       if(realOffers.length){
         renderRealOffers();
         renderRealMap();
@@ -1194,6 +1269,7 @@ export function bootPetCity() {
   try {
     getClient().auth.onAuthStateChange((event, session) => {
       setTimeout(syncNav, 0);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') setTimeout(refreshRealOffers, 0);
       if (event === 'PASSWORD_RECOVERY' && session) {
         open(`<div class="eyebrow">CUENTA PETCITY</div><h2 id="dialog-title">Nueva contraseña</h2>
           <form id="new-password-form" class="account-form"><label>Nueva contraseña<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
