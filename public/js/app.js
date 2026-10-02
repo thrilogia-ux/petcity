@@ -52,11 +52,13 @@ export function bootPetCity() {
     nav.innerHTML = items.map(([key, label]) =>
       `<button type="button" class="account-sidebar-link${accountTab === key ? ' active' : ''}" data-account-tab="${key}">${label}</button>`
     ).join('')
+      + `<button type="button" class="account-sidebar-link" data-go-explore>Explorar cuidadores</button>`
       + `<button type="button" class="account-sidebar-link" data-go-community>Comunidad</button>`
       + (isAdmin ? '<button type="button" class="account-sidebar-link" id="sidebar-admin">Moderación admin</button>' : '');
     nav.querySelectorAll('[data-account-tab]').forEach(btn => {
       btn.onclick = () => { accountTab = btn.dataset.accountTab; dashboard(); };
     });
+    nav.querySelector('[data-go-explore]')?.addEventListener('click', goExploreHome);
     nav.querySelector('[data-go-community]')?.addEventListener('click', () => { setView('community'); community(); });
     nav.querySelector('#sidebar-admin')?.addEventListener('click', moderation);
   }
@@ -114,8 +116,7 @@ export function bootPetCity() {
         if (result.error) throw result.error;
         if (result.data.session) {
           status('Cargando tu cuenta…');
-          await dashboard();
-          await syncNav();
+          await routeAfterLogin();
           status('');
         } else {
           status(mode === 'signup'
@@ -165,6 +166,42 @@ export function bootPetCity() {
   async function accountHome() {
     await ensureAccountScreen();
   }
+  function goExploreHome() {
+    setView('home');
+    requestAnimationFrame(() => {
+      const real = document.getElementById('real-offers');
+      if (real && !real.hidden) real.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else document.getElementById('demo-explore-block')?.classList.remove('is-collapsed');
+      document.querySelector('#demo-explore-block .demo-explore-panel')?.removeAttribute('hidden');
+    });
+  }
+  async function routeAfterLogin() {
+    const api = getClient();
+    const { data: auth } = await api.auth.getUser();
+    if (!auth.user) return login();
+    const [petsRes, appRes, adminRes, bookingsRes] = await Promise.all([
+      api.from('pets').select('id', { count: 'exact', head: true }),
+      api.from('sitter_applications').select('status').eq('user_id', auth.user.id).maybeSingle(),
+      api.rpc('petcity_is_admin'),
+      api.from('bookings').select('id,status,owner_id').order('created_at', { ascending: false }).limit(15),
+    ]);
+    const bookings = bookingsRes.data || [];
+    const activeCare = bookings.some(b => ['pending', 'accepted', 'in_progress'].includes(b.status));
+    const sitterPending = bookings.some(b => b.status === 'pending' && b.owner_id !== auth.user.id);
+    const isAdmin = adminRes.error ? false : Boolean(adminRes.data);
+    const app = appRes.data;
+    const petCount = petsRes.count ?? 0;
+    if (isAdmin) accountTab = 'pets';
+    else if (app?.status === 'approved') accountTab = (activeCare || sitterPending) ? 'services' : 'sitter';
+    else if (activeCare) accountTab = 'services';
+    else if (!petCount) accountTab = 'pets';
+    else accountTab = 'pets';
+    await dashboard();
+    await syncNav();
+  }
+  function emptyStateBox(title, body, buttonHtml = '') {
+    return `<div class="empty-state-box"><h4>${title}</h4><p>${body}</p>${buttonHtml}</div>`;
+  }
   async function dashboard() {
     try {
       closeModal();
@@ -172,6 +209,8 @@ export function bootPetCity() {
       const api = getClient();
       const { data: auth } = await api.auth.getUser();
       if (!auth.user) return login();
+      setView('account');
+      fillAccountPanel(`<div class="account-panel-loading" aria-busy="true" aria-label="Cargando tu cuenta"><div class="skeleton-panel"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-tile"></div></div></div>`);
       const [profileRes, petsRes, applicationRes, adminRes, bookingsRes] = await Promise.all([
         api.from('profiles').select('*').eq('id', auth.user.id).maybeSingle(),
         api.from('pets').select('*').order('created_at', {ascending:false}),
@@ -200,10 +239,10 @@ export function bootPetCity() {
       const bookingList = bookings || [];
       setView('account');
       renderAccountSidebar(isAdmin);
-      const petCards = pets.length ? pets.map(p=>`<div class="dash-tile" style="margin:10px 0"><div style="display:flex;align-items:center;gap:16px"><span data-pet-photo="${esc(p.photo_path||'')}" style="width:72px;height:72px;border-radius:18px;background:#e8f1e9;display:grid;place-items:center;overflow:hidden">🐾</span><div><h3>${esc(p.name)}</h3><p>${esc(p.species)}${p.breed?' · '+esc(p.breed):''}${p.size?' · '+esc(p.size):''}${p.weight_kg?' · '+esc(p.weight_kg)+' kg':''}</p></div></div><p>${esc(p.care_notes||'Sin indicaciones cargadas.')}</p><button class="dash-call" data-edit-pet="${esc(p.id)}">Ver y editar ficha</button></div>`).join('') : '<p>Todavía no cargaste mascotas.</p>';
-      const serviceCards = bookingsError ? '<p>Estamos habilitando las solicitudes.</p>' : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : '<p>Todavía no tenés servicios. Encontrá un cuidador en las ofertas aprobadas.</p>';
+      const petCards = pets.length ? pets.map(p=>`<div class="dash-tile" style="margin:10px 0"><div style="display:flex;align-items:center;gap:16px"><span data-pet-photo="${esc(p.photo_path||'')}" style="width:72px;height:72px;border-radius:18px;background:#e8f1e9;display:grid;place-items:center;overflow:hidden">🐾</span><div><h3>${esc(p.name)}</h3><p>${esc(p.species)}${p.breed?' · '+esc(p.breed):''}${p.size?' · '+esc(p.size):''}${p.weight_kg?' · '+esc(p.weight_kg)+' kg':''}</p></div></div><p>${esc(p.care_notes||'Sin indicaciones cargadas.')}</p><button class="dash-call" data-edit-pet="${esc(p.id)}">Ver y editar ficha</button></div>`).join('') : emptyStateBox('Todavía no cargaste mascotas', 'La ficha de tu mascota es necesaria para solicitar un cuidado verificado.', '<button type="button" class="primary" id="add-real-pet">Agregar mascota</button>');
+      const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o solicitá uno desde su perfil.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button>');
       const contents = {
-        pets: `<h3>Mis mascotas</h3>${petCards}<button class="primary" id="add-real-pet">Agregar mascota</button>`,
+        pets: `<h3>Mis mascotas</h3>${petCards}${pets.length ? '<button class="primary" id="add-real-pet">Agregar mascota</button>' : ''}`,
         services: `<h3>Mis cuidados</h3><p>Acá aparecen tus solicitudes, horarios y novedades del cuidado.</p>${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
@@ -214,6 +253,7 @@ export function bootPetCity() {
       };
       fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
       document.querySelector('#add-real-pet')?.addEventListener('click',petForm);
+      document.querySelector('#go-explore-sitters')?.addEventListener('click', goExploreHome);
       document.querySelectorAll('[data-edit-pet]').forEach(button=>button.onclick=()=>petForm(pets.find(p=>p.id===button.dataset.editPet)));
       document.querySelectorAll('[data-pet-photo]').forEach(async node=>{if(node.dataset.petPhoto){const url=await signedPhoto(node.dataset.petPhoto);if(url)node.innerHTML=`<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;}});
       document.querySelectorAll('[data-service]').forEach(button=>button.onclick=()=>serviceDetail(bookingList.find(b=>b.id===button.dataset.service),auth.user.id));
@@ -237,7 +277,7 @@ export function bootPetCity() {
         await syncNav();
         closeModal();
         status('');
-        openSignIn();
+        setView('home');
       };
     } catch (error) { open(`<h2 id="dialog-title">Cuenta PetCity</h2><p>No pudimos cargar tus datos: ${esc(error.message)}</p><button class="secondary" id="retry-account">Reintentar</button>`); document.querySelector('#retry-account').onclick = dashboard; }
   }
@@ -505,7 +545,13 @@ export function bootPetCity() {
     const pendingCards = (pendingRes.data || []).map(p =>
       `<article class="ig-post ig-post-pending"><header class="ig-post-head"><span class="ig-avatar">⏳</span><div><strong>Tu publicación</strong><span class="community-pending-badge">En revisión</span></div></header><div class="ig-post-media" data-post-photo="${esc(p.photo_path || '')}"></div><p class="ig-caption">${esc(p.caption)}</p><p class="fine">PetCity la mostrará acá cuando un admin la apruebe.</p></article>`,
     ).join('');
-    feed.innerHTML = pendingCards + (posts || []).map(igPost).join('') + demoCards;
+    const approvedHtml = (posts || []).map(igPost).join('');
+    if (!pendingCards && !approvedHtml && !demoCards) {
+      feed.innerHTML = emptyStateBox('Todavía no hay historias públicas', auth.user ? 'Sé el primero en compartir una foto de tu mascota.' : 'Ingresá para publicar y seguir historias reales.', auth.user ? '' : '<button type="button" class="primary" id="community-login-feed">Ingresar</button>') + demoCards;
+      feed.querySelector('#community-login-feed')?.addEventListener('click', login);
+    } else {
+      feed.innerHTML = pendingCards + approvedHtml + demoCards;
+    }
     document.querySelectorAll('[data-post-photo]').forEach(async node => {
       if (!node.dataset.postPhoto) return;
       const url = await signedPhoto(node.dataset.postPhoto);
@@ -832,10 +878,15 @@ export function bootPetCity() {
     const { data: { user } } = await api.auth.getUser();
     const catalog = document.getElementById('shop-catalog');
     if (!catalog) { shopBusy = false; return; }
-    catalog.innerHTML = '<p class="fine">Cargando productos…</p>';
+    catalog.innerHTML = `<div class="skeleton-shop" aria-hidden="true">${[1, 2, 3].map(() => '<div class="skeleton-shop-card"></div>').join('')}</div>`;
     const { data: products, error } = await api.from('shop_products').select('*').eq('active', true).order('name');
-    if (error) { catalog.innerHTML = `<p class="fine">${esc(error.message)}</p>`; shopBusy = false; return; }
-    catalog.innerHTML = (products || []).map(p => `<article class="shop-product-card" role="listitem"><div class="shop-product-art" aria-hidden="true">🛍</div><div class="shop-product-body"><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="shop-product-foot"><strong>$${Number(p.price_ars).toLocaleString('es-AR')}</strong><span class="fine">${p.stock} en stock</span><button type="button" class="primary" data-add-product="${esc(p.id)}" data-price="${p.price_ars}">Agregar</button></div></div></article>`).join('');
+    if (error) { catalog.innerHTML = emptyStateBox('No pudimos cargar el shop', esc(error.message)); shopBusy = false; return; }
+    if (!products?.length) {
+      catalog.innerHTML = emptyStateBox('Catálogo vacío', 'Todavía no hay productos activos. Volvé pronto o contactanos.');
+      shopBusy = false;
+      return;
+    }
+    catalog.innerHTML = (products || []).map(p => `<article class="shop-product-card" role="listitem"><div class="shop-product-art" aria-hidden="true">🛍</div><div class="shop-product-body"><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="shop-product-foot"><strong>$${Number(p.price_ars).toLocaleString('es-AR')}</strong><span class="fine">${p.stock} en stock</span><button type="button" class="primary" data-add-product="${esc(p.id)}" data-price="${p.price_ars}"${p.stock < 1 ? ' disabled' : ''}>Agregar</button></div></div></article>`).join('');
     if (user) {
       const { data: cartId } = await api.rpc('petcity_get_or_create_cart');
       shopCartId = cartId;
@@ -903,6 +954,46 @@ export function bootPetCity() {
   offersSection.className='real-offers-block';
   const cardsEl=document.querySelector('#guest-main .content #cards');
   if(cardsEl?.parentElement)cardsEl.parentElement.insertBefore(offersSection,cardsEl);
+  function initDemoExploreBlock() {
+    const cards = document.getElementById('cards');
+    if (!cards || document.getElementById('demo-explore-block')) return;
+    const section = cards.closest('section');
+    const head = section?.querySelector('.results-head');
+    if (!head || !section) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'demo-explore-block';
+    wrap.className = 'demo-explore-block is-collapsed';
+    wrap.innerHTML = '<button type="button" class="demo-explore-toggle" aria-expanded="false"><span class="demo-explore-title">Perfiles de ejemplo</span><span class="demo-explore-hint">Solo demostración · no son reservas reales</span><span class="demo-explore-chevron" aria-hidden="true">▼</span></button><div class="demo-explore-panel" hidden></div>';
+    section.insertBefore(wrap, head);
+    const panel = wrap.querySelector('.demo-explore-panel');
+    panel.append(head, cards);
+    wrap.querySelector('.demo-explore-toggle').addEventListener('click', () => {
+      const collapsed = wrap.classList.toggle('is-collapsed');
+      panel.hidden = collapsed;
+      wrap.querySelector('.demo-explore-toggle').setAttribute('aria-expanded', String(!collapsed));
+    });
+  }
+  function updateDemoExploreVisibility() {
+    const wrap = document.getElementById('demo-explore-block');
+    if (!wrap) return;
+    const panel = wrap.querySelector('.demo-explore-panel');
+    const toggle = wrap.querySelector('.demo-explore-toggle');
+    const hasReal = realOffers.length > 0;
+    document.body.classList.toggle('has-verified-offers', hasReal);
+    if (demoMode || !hasReal) {
+      wrap.classList.remove('is-collapsed');
+      if (panel) panel.hidden = false;
+      toggle?.setAttribute('aria-expanded', 'true');
+    } else {
+      wrap.classList.add('is-collapsed');
+      if (panel) panel.hidden = true;
+      toggle?.setAttribute('aria-expanded', 'false');
+    }
+  }
+  function offersLoadingHtml() {
+    return `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">Cargando cuidadores…</h3></div><div class="skeleton-cards" aria-hidden="true">${[1, 2].map(() => '<div class="skeleton-card"><div class="skeleton-photo"></div><div class="skeleton-lines"><span></span><span></span><span></span></div></div>').join('')}</div>`;
+  }
+  initDemoExploreBlock();
   function sitterCardPhotoPlaceholder(name) {
     const label = encodeURIComponent(String(name || 'Cuidador').trim().slice(0, 24));
     return `https://ui-avatars.com/api/?name=${label}&background=c7f3e8&color=173e3a&size=280&bold=true`;
@@ -970,7 +1061,7 @@ export function bootPetCity() {
             </div>
           </div>
         </div>
-      </article>`).join('') : '<p class="empty-state">No hay ofertas aprobadas con esos filtros.</p>'}</div>
+      </article>`).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
       <p class="fine">${isPaymentsEnabled()?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
     offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
@@ -984,14 +1075,32 @@ export function bootPetCity() {
         renderRealOffers();
       };
     });
+    offersSection.querySelector('#real-offers-reset-filters')?.addEventListener('click', () => {
+      searchedPlace = '';
+      showFavoritesOff();
+      renderRealOffers();
+    });
     hydrateRealOfferPortraits(offersSection);
   }
+  function showFavoritesOff() {
+    const toggle = document.querySelector('#saved-toggle');
+    if (toggle?.getAttribute('aria-pressed') === 'true') {
+      toggle.setAttribute('aria-pressed', 'false');
+      window.petcityDemoRender?.();
+    }
+  }
   async function refreshRealOffers() {
+    offersSection.hidden = false;
+    offersSection.innerHTML = offersLoadingHtml();
     try {
       const {data,error}=await getClient().from('sitter_applications')
         .select('id,public_name,city,bio,headline,sitter_offers(id,service,price_ars,unit),sitter_offer_photos(photo_path,sort_order,status)')
         .eq('status','approved');
-      if(error) return;
+      if(error) {
+        offersSection.innerHTML = emptyStateBox('No pudimos cargar cuidadores verificados', esc(error.message));
+        updateDemoExploreVisibility();
+        return;
+      }
       realOffers=(data||[]).flatMap(a=>{
         const photo_path=(a.sitter_offer_photos||[])
           .filter(p=>p.status==='approved')
@@ -999,10 +1108,21 @@ export function bootPetCity() {
         return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
       });
       realOffers = await attachSitterRatings(realOffers);
-      offersSection.hidden=!realOffers.length;
-      if(realOffers.length){renderRealOffers();renderRealMap();}
-      else if(window.petcityRealOffersLayer)window.petcityRealOffersLayer.clearLayers();
-    } catch(error) { console.error('PetCity approved offers:',error); }
+      if(realOffers.length){
+        renderRealOffers();
+        renderRealMap();
+      } else {
+        offersSection.innerHTML = emptyStateBox('Pronto habrá cuidadores verificados', 'Mientras tanto podés explorar los perfiles de ejemplo abajo o postularte como cuidador.', '<button type="button" class="primary" id="go-become-sitter">Quiero cuidar mascotas</button>');
+        offersSection.querySelector('#go-become-sitter')?.addEventListener('click', () => document.querySelector('#become')?.click());
+        if(window.petcityRealOffersLayer)window.petcityRealOffersLayer.clearLayers();
+      }
+      updateDemoExploreVisibility();
+      window.petcityDemoRender?.();
+    } catch(error) {
+      console.error('PetCity approved offers:',error);
+      offersSection.innerHTML = emptyStateBox('Error al cargar ofertas', 'Revisá tu conexión e intentá recargar la página.');
+      updateDemoExploreVisibility();
+    }
   }
   async function realBooking(offer) {
     if(!offer) return;
@@ -1097,7 +1217,7 @@ export function bootPetCity() {
           const cleanedSearch = location.search.replace(/([?&])code=[^&]+&?/, '$1').replace(/[?&]$/, '');
           history.replaceState(null, '', location.pathname + (cleanedSearch === '?' ? '' : cleanedSearch));
           if (location.hash.includes('type=recovery')) return;
-          setTimeout(dashboard, 0);
+          setTimeout(routeAfterLogin, 0);
         }
       });
     } catch (error) { console.error('PetCity auth callback:', error); }
