@@ -112,32 +112,36 @@ footer{color:var(--pc-muted);border-top:1px solid var(--pc-line);margin-top:24px
 .badge-verified{display:inline-block;background:var(--pc-accent-soft);color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;margin-bottom:8px}
 .card-sitter-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:0}
 .card-sitter-actions .primary,.card-sitter-actions .secondary{width:auto;flex:1 1 140px;margin:0;font-size:13px;padding:9px 12px}
-#real-offers .card-sitter-real{display:grid;grid-template-columns:126px 1fr;gap:16px;align-items:stretch;cursor:default;padding:12px;width:100%;max-width:100%}
-#real-offers .card-sitter-real .portrait{width:126px;height:142px;object-fit:cover;background:#d4e2d7}
-#real-offers .card-sitter-real .cardbody{min-width:0;overflow:hidden}
-#real-offers .card-sitter-real .badge-verified{margin-bottom:4px}
-#real-offers .card-sitter-real .card-bio-wrap{margin:8px 0 10px;max-width:100%}
-#real-offers .card-sitter-real .card-bio-text{margin:0;font-size:14px;line-height:1.45;color:var(--pc-muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;word-break:break-word;overflow-wrap:anywhere}
-#real-offers .card-sitter-real .card-read-more{margin:6px 0 0;padding:0;border:0;background:none;color:var(--pc-accent);font-size:13px;font-weight:600;cursor:pointer;text-align:left}
-#real-offers .card-sitter-real .card-read-more:hover{text-decoration:underline;color:#11594f}
-#real-offers .card-sitter-real .cardfoot-verified{display:flex;flex-direction:row;justify-content:flex-end;margin-top:8px}
-#real-offers .card-sitter-real .cardfoot-price-col{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0;margin-left:auto;width:auto;max-width:100%}
-#real-offers .card-sitter-real .price-verified{font-size:20.4px;font-weight:700;line-height:1.2;text-align:right}
-#real-offers .card-sitter-real .price-verified small{font-size:15.6px;font-weight:500;color:var(--pc-muted)}
-#real-offers .card-sitter-real .cardfoot-actions-row{display:grid;grid-template-columns:auto minmax(140px,1fr);gap:8px;align-items:stretch;width:min(100%,360px);flex-wrap:nowrap}
-#real-offers .card-sitter-real .cardfoot-actions-row .secondary{margin:0;white-space:nowrap;padding:9px 14px;width:auto;flex:none}
-#real-offers .card-sitter-real .cardfoot-actions-row .primary{margin:0;white-space:nowrap;width:100%;min-width:0}
-#real-offers .card-sitter-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
-#real-offers .card-sitter-head .badge-verified{margin-bottom:0}
-#real-offers .card-sitter-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
-#real-offers .card-rating{font-size:14px;font-weight:700;white-space:nowrap;color:var(--pc-ink)}
-#real-offers .card-rating b{color:#e8a928;font-weight:800}
-#real-offers .card-rating .muted{font-weight:500;font-size:13px;color:var(--pc-muted)}
-#real-offers .card-rating-new .muted{display:none}
-#real-offers .save-heart{width:34px;height:34px;border-radius:50%;border:1.5px solid #cfd8d4;background:#fff;color:var(--pc-ink);display:grid;place-items:center;padding:0;font-size:17px;line-height:1;flex-shrink:0}
-#real-offers .save-heart:hover{background:var(--pc-soft);border-color:#b8c5bf}
-#real-offers .save-heart.is-saved{background:var(--pc-accent);border-color:var(--pc-accent);color:#fff}
-#real-offers .save-heart.is-saved:hover{background:#11594f;border-color:#11594f}
+.real-offers-block .card-sitter-real{display:grid;grid-template-columns:126px 1fr;gap:16px;align-items:stretch;cursor:default;padding:12px;width:100%;max-width:100%;background:#fff;border:1px solid var(--pc-line);border-radius:22px;box-shadow:0 7px 30px #123d3610}
+.real-offers-block .card-sitter-real:hover{border-color:#79cdbc;box-shadow:0 14px 32px #166d5a20}
+.real-offers-block .card-sitter-real .portrait{border-radius:16px}
+.real-offers-block .card-sitter-real .name{font:800 18px Manrope,-apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:-.5px}
+.real-offers-block .card-sitter-real .tag{background:#eaf7f2;color:#277265;border-radius:10px}
+.real-offers-block .card-sitter-real .portrait{width:126px;height:142px;object-fit:cover;background:#d4e2d7}
+.real-offers-block .card-sitter-real .cardbody{min-width:0;overflow:hidden}
+.real-offers-block .card-sitter-real .badge-verified{margin-bottom:4px}
+.real-offers-block .card-sitter-real .card-bio-wrap{margin:8px 0 10px;max-width:100%}
+.real-offers-block .card-sitter-real .card-bio-text{margin:0;font-size:14px;line-height:1.45;color:var(--pc-muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;word-break:break-word;overflow-wrap:anywhere}
+.real-offers-block .card-sitter-real .card-read-more{margin:6px 0 0;padding:0;border:0;background:none;color:var(--pc-accent);font-size:13px;font-weight:600;cursor:pointer;text-align:left}
+.real-offers-block .card-sitter-real .card-read-more:hover{text-decoration:underline;color:#11594f}
+.real-offers-block .card-sitter-real .cardfoot-verified{display:flex;flex-direction:row;justify-content:flex-end;margin-top:8px}
+.real-offers-block .card-sitter-real .cardfoot-price-col{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0;margin-left:auto;width:auto;max-width:100%}
+.real-offers-block .card-sitter-real .price-verified{font-size:20.4px;font-weight:700;line-height:1.2;text-align:right}
+.real-offers-block .card-sitter-real .price-verified small{font-size:15.6px;font-weight:500;color:var(--pc-muted)}
+.real-offers-block .card-sitter-real .cardfoot-actions-row{display:grid;grid-template-columns:auto minmax(140px,1fr);gap:8px;align-items:stretch;width:min(100%,360px);flex-wrap:nowrap}
+.real-offers-block .card-sitter-real .cardfoot-actions-row .secondary{margin:0;white-space:nowrap;padding:9px 14px;width:auto;flex:none}
+.real-offers-block .card-sitter-real .cardfoot-actions-row .primary{margin:0;white-space:nowrap;width:100%;min-width:0}
+.real-offers-block .card-sitter-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.real-offers-block .card-sitter-head .badge-verified{margin-bottom:0}
+.real-offers-block .card-sitter-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.real-offers-block .card-rating{font-size:14px;font-weight:700;white-space:nowrap;color:var(--pc-ink)}
+.real-offers-block .card-rating b{color:#e8a928;font-weight:800}
+.real-offers-block .card-rating .muted{font-weight:500;font-size:13px;color:var(--pc-muted)}
+.real-offers-block .card-rating-new .muted{display:none}
+.real-offers-block .save-heart{width:34px;height:34px;border-radius:50%;border:1.5px solid #cfd8d4;background:#fff;color:var(--pc-ink);display:grid;place-items:center;padding:0;font-size:17px;line-height:1;flex-shrink:0}
+.real-offers-block .save-heart:hover{background:var(--pc-soft);border-color:#b8c5bf}
+.real-offers-block .save-heart.is-saved{background:var(--pc-accent);border-color:var(--pc-accent);color:#fff}
+.real-offers-block .save-heart.is-saved:hover{background:#11594f;border-color:#11594f}
 .empty-state{color:var(--pc-muted);padding:24px;text-align:center;border:1px dashed var(--pc-line);border-radius:16px}
 .empty-state-box{border:1px solid var(--pc-line);border-radius:18px;padding:22px 20px;background:var(--pc-soft);margin:12px 0;text-align:center}
 .empty-state-box h4{margin:0 0 8px;font-size:17px;font-weight:600;color:var(--pc-ink)}
@@ -178,9 +182,9 @@ body.demo-mode #guest-main .intro .fine::after{content:' · Modo demo activo'}
 body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #real-map{margin-bottom:0}
 #real-offers.real-offers-block{margin-bottom:24px;padding-bottom:22px;border-bottom:1px solid var(--pc-line)}
-#real-offers .fine{margin-top:12px;font-size:13px;line-height:1.45}
-#real-offers .results-head-compact{margin-bottom:14px}
-#real-offers .real-offers-title{margin:6px 0 0;font-size:18px;font-weight:700;line-height:1.25}
+.real-offers-block .fine{margin-top:12px;font-size:13px;line-height:1.45}
+.real-offers-block .results-head-compact{margin-bottom:14px}
+.real-offers-block .real-offers-title{margin:6px 0 0;font-size:18px;font-weight:700;line-height:1.25}
 .profile-gallery img{display:block}
 .sitter-public-profile{display:grid;gap:22px;padding-top:4px}
 .spp-header{display:grid;grid-template-columns:120px 1fr;grid-template-rows:auto auto;gap:10px 20px;align-items:start;padding-bottom:20px;padding-right:44px;border-bottom:1px solid var(--pc-line)}
@@ -217,7 +221,7 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
   .spp-price-block{grid-column:2;grid-row:2;justify-self:start;text-align:left;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .spp-unit{display:inline;margin:0}
   .spp-footer .primary{width:100%;min-width:0}
-  #real-offers .card-sitter-real .cardfoot-actions-row{grid-template-columns:1fr 1.35fr;width:100%}
+  .real-offers-block .card-sitter-real .cardfoot-actions-row{grid-template-columns:1fr 1.35fr;width:100%}
 }
 @media(max-width:1000px){.mapwrap{top:0}}
 @media(max-width:800px){.top{height:70px}.topnav{background:#fff;border-color:var(--pc-line);border-radius:18px;box-shadow:0 8px 24px #00000012}.topnav .navpill{border-color:transparent!important}.topnav button:hover{background:var(--pc-soft)}}
@@ -228,13 +232,21 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
-#real-offers .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
+.real-offers-block .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
 .my-active-care-block{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--pc-line)}
 .my-active-care-label{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--pc-accent)}
 .card-my-active-care,.card-offer-active-care{background:linear-gradient(160deg,#f3fbf8 0%,#fff 55%);border-color:#c5e8de}
 .card-my-active-care .cardbody-full{padding:4px 2px}
 .badge-active-care{display:inline-block;background:#d4f0e8;color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600}
 .badge-active-care-inline{margin-bottom:0}
+#demo-real-offers.real-offers-block{margin-top:0;padding-top:22px;border-top:1px solid var(--pc-line)}
+#marketplace-list #real-offers:not([hidden])+#demo-real-offers{border-top-width:0;padding-top:8px;margin-top:0}
+#guest-main .content > .marketplace-list-column{grid-column:1;min-width:0;display:flex;flex-direction:column;gap:0}
+#guest-main .content > .results-head{grid-column:1}
+#guest-main .content > .result-tools{grid-column:2;grid-row:1}
+#guest-main .content > .mapwrap{grid-column:2;grid-row:2;align-self:start}
+@media(max-width:1000px){#guest-main .content > .mapwrap{grid-column:1;grid-row:auto}}
+#guest-main .content .results-head[hidden],#cards[hidden]{display:none!important}
 .card-offer-active-care .badge-verified{display:none}
 .map.real-ready.map-verified-only:after{content:'Cuidadores verificados · OpenStreetMap'}
 body.app-mode main#guest-main{display:none}

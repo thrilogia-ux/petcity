@@ -947,6 +947,7 @@ export function bootPetCity() {
   function persistRealSaved() {
     localStorage.setItem(REAL_SAVED_KEY, JSON.stringify([...realSavedOffers]));
     window.petcityDemoRender?.();
+    renderDemoMarketplaceOffers();
   }
   window.petcityBuildLeafletMapPin = opts => createMapPinIcon(window.L, opts);
   window.petcityRealSavedCount = () => realSavedOffers.size;
@@ -954,66 +955,55 @@ export function bootPetCity() {
   offersSection.id='real-offers';
   offersSection.hidden=true;
   offersSection.className='real-offers-block';
+  const demoOffersSection=document.createElement('div');
+  demoOffersSection.id='demo-real-offers';
+  demoOffersSection.className='real-offers-block demo-real-offers-block';
+  const marketplaceListColumn=document.createElement('div');
+  marketplaceListColumn.id='marketplace-list';
+  marketplaceListColumn.className='marketplace-list-column';
+  marketplaceListColumn.append(offersSection, demoOffersSection);
+  const contentRoot=document.querySelector('#guest-main .content');
   const cardsEl=document.querySelector('#guest-main .content #cards');
-  if(cardsEl?.parentElement)cardsEl.parentElement.insertBefore(offersSection,cardsEl);
+  if(contentRoot){
+    if(cardsEl) contentRoot.insertBefore(marketplaceListColumn, cardsEl);
+    else contentRoot.appendChild(marketplaceListColumn);
+  }
+  const DEMO_MARKETPLACE_OFFERS = [
+    { id: 'demo-lucia-paseo', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Paseos tranquilos y atención personalizada. Te comparto novedades durante el cuidado.', service: 'paseo', price_ars: 8500, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
+    { id: 'demo-lucia-casa', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Visitas y cuidado en tu casa manteniendo la rutina de tu mascota.', service: 'cuidado_en_casa', price_ars: 9800, unit: 'visita', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
+    { id: 'demo-martin-aloj', demoPersonId: 2, public_name: 'Martín R.', city: 'Palermo Hollywood', bio: 'Recibo mascotas en casa con espacio para jugar y tiempo para acompañarlas.', service: 'alojamiento', price_ars: 13000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=350&q=80', rating_avg: 5, rating_count: 32 },
+    { id: 'demo-sofia-casa', demoPersonId: 3, public_name: 'Sofía G.', city: 'Villa Crespo', bio: 'Visitas a domicilio para mantener las rutinas de tu mascota mientras no estás.', service: 'cuidado_en_casa', price_ars: 10500, unit: 'visita', portrait_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=350&q=80', rating_avg: 4.8, rating_count: 67 },
+    { id: 'demo-sofia-paseo', demoPersonId: 3, public_name: 'Sofía G.', city: 'Villa Crespo', bio: 'Paseos en grupo chico o individuales según lo que necesite tu perro.', service: 'paseo', price_ars: 9200, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=350&q=80', rating_avg: 4.8, rating_count: 67 },
+    { id: 'demo-nico-vac', demoPersonId: 4, public_name: 'Nicolás P.', city: 'Recoleta', bio: 'Cuidado flexible para escapadas y viajes. Coordinamos las necesidades de cada mascota.', service: 'vacaciones', price_ars: 15000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=350&q=80', rating_avg: 4.9, rating_count: 25 },
+    { id: 'demo-camila-paseo', demoPersonId: 5, public_name: 'Camila F.', city: 'Belgrano', bio: 'Paseos y visitas con horarios adaptados a tu rutina.', service: 'paseo', price_ars: 9000, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=350&q=80', rating_avg: 4.7, rating_count: 41 },
+    { id: 'demo-valentina-paseo', demoPersonId: 6, public_name: 'Valentina L.', city: 'Colegiales', bio: 'Especialista en paseos largos y perros con mucha energía.', service: 'paseo', price_ars: 7800, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=350&q=80', rating_avg: 4.6, rating_count: 19 },
+    { id: 'demo-tomas-aloj', demoPersonId: 7, public_name: 'Tomás E.', city: 'Núñez', bio: 'Alojamiento en casa con patio. Ideal para escapadas de fin de semana.', service: 'alojamiento', price_ars: 11000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=350&q=80', rating_avg: 4.8, rating_count: 14 },
+  ];
+  const DEMO_SAVED_KEY = 'petcity-saved-demo-offers';
+  const demoSavedOffers = new Set(JSON.parse(localStorage.getItem(DEMO_SAVED_KEY) || '[]'));
   function initDemoExploreBlock() {
-    const cards = document.getElementById('cards');
-    if (!cards || document.getElementById('demo-explore-block')) return;
-    const section = cards.closest('section');
-    const head = section?.querySelector('.results-head');
-    if (!head || !section) return;
-    const wrap = document.createElement('div');
-    wrap.id = 'demo-explore-block';
-    wrap.className = 'demo-explore-block is-collapsed';
-    wrap.innerHTML = '<button type="button" class="demo-explore-toggle" aria-expanded="false"><span class="demo-explore-title">Perfiles de ejemplo</span><span class="demo-explore-hint">Solo demostración · no son reservas reales</span><span class="demo-explore-chevron" aria-hidden="true">▼</span></button><div class="demo-explore-panel" hidden></div>';
-    section.insertBefore(wrap, head);
-    const panel = wrap.querySelector('.demo-explore-panel');
-    panel.append(head, cards);
-    wrap.querySelector('.demo-explore-toggle').addEventListener('click', () => {
-      const collapsed = wrap.classList.toggle('is-collapsed');
-      panel.hidden = collapsed;
-      wrap.querySelector('.demo-explore-toggle').setAttribute('aria-expanded', String(!collapsed));
-      syncDemoMapWithList();
-    });
+    document.getElementById('demo-explore-block')?.remove();
+    const legacyHead = document.querySelector('#guest-main .content .results-head');
+    const legacyCards = document.getElementById('cards');
+    if (legacyHead) legacyHead.hidden = true;
+    if (legacyCards) legacyCards.hidden = true;
   }
   function syncDemoMapWithList() {
-    const wrap = document.getElementById('demo-explore-block');
-    const demoListOpen = !wrap || !wrap.classList.contains('is-collapsed');
-    const showDemoOnMap = demoMode || !realOffers.length || demoListOpen;
-    if (window.petcityDemoMapLayer) {
-      if (showDemoOnMap) window.petcityDemoRender?.();
-      else window.petcityDemoMapLayer.clearLayers();
-    }
+    window.petcityDemoRender?.();
     const pins = document.getElementById('pins');
-    if (pins) pins.style.display = showDemoOnMap ? '' : 'none';
-    const mapShell = document.querySelector('#map-shell');
-    if (mapShell) mapShell.classList.toggle('map-verified-only', realOffers.length > 0 && !showDemoOnMap);
+    if (pins) pins.style.display = '';
+    document.querySelector('#map-shell')?.classList.remove('map-verified-only');
   }
   function updateDemoExploreVisibility() {
-    const wrap = document.getElementById('demo-explore-block');
-    if (!wrap) return;
-    const panel = wrap.querySelector('.demo-explore-panel');
-    const toggle = wrap.querySelector('.demo-explore-toggle');
-    const hint = wrap.querySelector('.demo-explore-hint');
-    const hasReal = realOffers.length > 0;
-    document.body.classList.toggle('has-verified-offers', hasReal);
-    if (demoMode || !hasReal) {
-      wrap.classList.remove('is-collapsed');
-      if (panel) panel.hidden = false;
-      toggle?.setAttribute('aria-expanded', 'true');
-      if (hint) hint.textContent = 'Solo demostración · no son reservas reales';
-    } else {
-      wrap.classList.add('is-collapsed');
-      if (panel) panel.hidden = true;
-      toggle?.setAttribute('aria-expanded', 'false');
-      if (hint) hint.textContent = 'Tocá para ver perfiles de ejemplo en la lista (el mapa muestra solo verificados)';
-    }
+    document.body.classList.toggle('has-verified-offers', realOffers.length > 0);
     syncDemoMapWithList();
+    renderDemoMarketplaceOffers();
   }
   function offersLoadingHtml() {
     return `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">Cargando cuidadores…</h3></div><div class="skeleton-cards" aria-hidden="true">${[1, 2].map(() => '<div class="skeleton-card"><div class="skeleton-photo"></div><div class="skeleton-lines"><span></span><span></span><span></span></div></div>').join('')}</div>`;
   }
   initDemoExploreBlock();
+  if (!contentRoot) console.warn('PetCity: no se encontró #guest-main .content; ofertas simuladas no montadas.');
   function sitterCardPhotoPlaceholder(name) {
     const label = encodeURIComponent(String(name || 'Cuidador').trim().slice(0, 24));
     return `https://ui-avatars.com/api/?name=${label}&background=c7f3e8&color=173e3a&size=280&bold=true`;
@@ -1053,6 +1043,118 @@ export function bootPetCity() {
   function activeCareByOfferId() {
     return Object.fromEntries(activeCareBookings.map(b => [b.offer_id, b]));
   }
+  function filterShownOffers(list, { demo = false } = {}) {
+    const category = document.querySelector('.chip.active')?.dataset.category || 'Todos';
+    const savedOnly = document.querySelector('#saved-toggle')?.getAttribute('aria-pressed') === 'true';
+    return list.filter(o => {
+      if (category !== 'Todos' && serviceLabels[o.service] !== category) return false;
+      if (searchedPlace && !o.city.toLowerCase().includes(searchedPlace)) return false;
+      if (savedOnly && !(demo ? demoSavedOffers.has(o.id) : realSavedOffers.has(o.id))) return false;
+      return true;
+    });
+  }
+  function renderMarketplaceOfferCard(o, { demo = false, booking = null } = {}) {
+    const serviceLabel = esc(serviceLabels[o.service] || o.service);
+    const activeCls = booking ? ' card-offer-active-care' : '';
+    const badge = booking
+      ? `<span class="badge-active-care badge-active-care-inline">Tu servicio · ${esc(stateLabels[booking.status] || booking.status)}</span>`
+      : (demo ? '<span class="badge-verified">Verificación simulada</span>' : '<span class="badge-verified">Verificado</span>');
+    const saved = demo ? demoSavedOffers.has(o.id) : realSavedOffers.has(o.id);
+    const saveAttr = demo ? 'data-save-demo-offer' : 'data-save-offer';
+    const saveLabel = saved ? 'Quitar de guardados' : 'Guardar cuidador';
+    const imgSrc = demo && o.portrait_url ? esc(o.portrait_url) : esc(sitterCardPhotoPlaceholder(o.public_name));
+    const photoPathAttr = !demo && o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : '';
+    const primaryBtn = booking
+      ? `<button type="button" class="primary" data-open-active-booking="${esc(booking.id)}">Ver tu servicio</button>`
+      : demo
+        ? `<button type="button" class="primary" data-demo-booking="${esc(o.demoPersonId)}">Solicitar cuidado</button>`
+        : `<button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>`;
+    const viewAttr = demo ? 'data-view-demo-offer' : 'data-view-offer';
+    const viewVal = demo ? esc(o.id) : esc(o.id);
+    return `<article class="card card-sitter-real${activeCls}">
+        <img class="portrait" src="${imgSrc}" alt="Foto de ${esc(o.public_name)}" width="126" height="142" loading="lazy"${photoPathAttr}>
+        <div class="cardbody">
+          <div class="card-sitter-head">
+            ${badge}
+            <div class="card-sitter-tools">
+              ${formatCardRating(o)}
+              <button type="button" class="save-heart${saved ? ' is-saved' : ''}" ${saveAttr}="${esc(o.id)}" aria-label="${saveLabel}" aria-pressed="${saved}"><span aria-hidden="true">${saved ? '♥' : '♡'}</span></button>
+            </div>
+          </div>
+          <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
+          <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel}</div>
+          ${o.bio ? `<div class="card-bio-wrap"><p class="description card-bio-text">${esc(o.bio)}</p><button type="button" class="card-read-more" ${viewAttr}="${viewVal}">Leer más</button></div>` : ''}
+          <div class="tags"><span class="tag">${serviceLabel}</span></div>
+          <div class="cardfoot cardfoot-verified">
+            <div class="cardfoot-price-col">
+              <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
+              <div class="cardfoot-actions-row">
+                <button type="button" class="secondary" ${viewAttr}="${viewVal}">Ver perfil</button>
+                ${primaryBtn}
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>`;
+  }
+  function wireMarketplaceCardActions(root, { demo = false } = {}) {
+    if (!demo) {
+      root.querySelectorAll('[data-real-offer]').forEach(button => button.onclick = () => realBooking(realOffers.find(o => o.id === button.dataset.realOffer)));
+      root.querySelectorAll('[data-view-offer]').forEach(button => button.onclick = () => publicSitterProfile(button.dataset.viewOffer));
+      root.querySelectorAll('[data-save-offer]').forEach(button => {
+        button.onclick = event => {
+          event.stopPropagation();
+          const id = button.dataset.saveOffer;
+          if (realSavedOffers.has(id)) realSavedOffers.delete(id);
+          else realSavedOffers.add(id);
+          persistRealSaved();
+          renderRealOffers();
+        };
+      });
+    } else {
+      root.querySelectorAll('[data-view-demo-offer]').forEach(button => {
+        button.onclick = () => {
+          const o = DEMO_MARKETPLACE_OFFERS.find(x => x.id === button.dataset.viewDemoOffer);
+          if (o?.demoPersonId && typeof window.petcityOpenDemoProfile === 'function') window.petcityOpenDemoProfile(o.demoPersonId);
+        };
+      });
+      root.querySelectorAll('[data-demo-booking]').forEach(button => {
+        button.onclick = () => {
+          if (typeof window.petcityOpenDemoBooking === 'function') window.petcityOpenDemoBooking(Number(button.dataset.demoBooking));
+        };
+      });
+      root.querySelectorAll('[data-save-demo-offer]').forEach(button => {
+        button.onclick = event => {
+          event.stopPropagation();
+          const id = button.dataset.saveDemoOffer;
+          if (demoSavedOffers.has(id)) demoSavedOffers.delete(id);
+          else demoSavedOffers.add(id);
+          localStorage.setItem(DEMO_SAVED_KEY, JSON.stringify([...demoSavedOffers]));
+          renderDemoMarketplaceOffers();
+          window.petcityDemoRender?.();
+        };
+      });
+    }
+    root.querySelectorAll('[data-open-active-booking]').forEach(button => {
+      button.onclick = async () => {
+        const booking = activeCareBookings.find(b => b.id === button.dataset.openActiveBooking);
+        if (!booking) return;
+        const { data: { user } } = await getClient().auth.getUser();
+        if (!user) return login();
+        accountTab = 'services';
+        await serviceDetail(booking, user.id);
+      };
+    });
+  }
+  function renderDemoMarketplaceOffers() {
+    if (!demoOffersSection) return;
+    const shown = filterShownOffers(DEMO_MARKETPLACE_OFFERS, { demo: true });
+    demoOffersSection.hidden = false;
+    demoOffersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length === 1 ? '' : 's'} simulada${shown.length === 1 ? '' : 's'}</h3></div>
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => renderMarketplaceOfferCard(o, { demo: true })).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.')}</div>
+      <p class="fine">Mismo diseño que los verificados. La pastilla indica verificación simulada; solicitar y perfil usan el flujo demo (sin Supabase).</p>`;
+    wireMarketplaceCardActions(demoOffersSection, { demo: true });
+  }
   function renderActiveCareLandingCard(b) {
     const sitter = b.sitter_offers?.sitter_applications?.public_name || 'Cuidador';
     const service = serviceLabels[b.sitter_offers?.service] || b.sitter_offers?.service || 'Servicio';
@@ -1072,78 +1174,28 @@ export function bootPetCity() {
     </article>`;
   }
   function renderRealOffers() {
-    if (!realOffers.length) return;
-    const category=document.querySelector('.chip.active')?.dataset.category || 'Todos';
-    const savedOnly = document.querySelector('#saved-toggle')?.getAttribute('aria-pressed') === 'true';
-    const shown=realOffers.filter(o=>(category==='Todos'||serviceLabels[o.service]===category)&&(!searchedPlace||o.city.toLowerCase().includes(searchedPlace))&&(!savedOnly||realSavedOffers.has(o.id)));
+    if (!realOffers.length) {
+      offersSection.hidden = true;
+      renderDemoMarketplaceOffers();
+      return;
+    }
+    offersSection.hidden = false;
+    const shown = filterShownOffers(realOffers);
     const careByOffer = activeCareByOfferId();
     const shownOfferIds = new Set(shown.map(o => o.id));
     const activeNotInList = activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
-    const serviceLabel = o => esc(serviceLabels[o.service] || o.service);
-    offersSection.innerHTML=`<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length===1?'':'s'} verificada${shown.length===1?'':'s'}</h3></div>
+    offersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length === 1 ? '' : 's'} verificada${shown.length === 1 ? '' : 's'}</h3></div>
       ${activeNotInList.length ? `<div class="my-active-care-block"><p class="my-active-care-label">Tus servicios activos (otros filtros)</p><div class="cards real-offer-cards">${activeNotInList.map(renderActiveCareLandingCard).join('')}</div></div>` : ''}
-      <div class="cards real-offer-cards">${shown.length ? shown.map(o => {
-        const booking = careByOffer[o.id];
-        const activeCls = booking ? ' card-offer-active-care' : '';
-        const primaryBtn = booking
-          ? `<button type="button" class="primary" data-open-active-booking="${esc(booking.id)}">Ver tu servicio</button>`
-          : `<button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>`;
-        const activeBadge = booking ? `<span class="badge-active-care badge-active-care-inline">Tu servicio · ${esc(stateLabels[booking.status] || booking.status)}</span>` : '';
-        return `<article class="card card-sitter-real${activeCls}">
-        <img class="portrait" src="${esc(sitterCardPhotoPlaceholder(o.public_name))}" alt="Foto de ${esc(o.public_name)}" width="126" height="142" loading="lazy"${o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : ''}>
-        <div class="cardbody">
-          <div class="card-sitter-head">
-            ${activeBadge || '<span class="badge-verified">Verificado</span>'}
-            <div class="card-sitter-tools">
-              ${formatCardRating(o)}
-              <button type="button" class="save-heart${realSavedOffers.has(o.id) ? ' is-saved' : ''}" data-save-offer="${esc(o.id)}" aria-label="${realSavedOffers.has(o.id) ? 'Quitar de guardados' : 'Guardar cuidador'}" aria-pressed="${realSavedOffers.has(o.id)}"><span aria-hidden="true">${realSavedOffers.has(o.id) ? '♥' : '♡'}</span></button>
-            </div>
-          </div>
-          <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
-          <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel(o)}</div>
-          ${o.bio ? `<div class="card-bio-wrap"><p class="description card-bio-text">${esc(o.bio)}</p><button type="button" class="card-read-more" data-view-offer="${esc(o.id)}">Leer más</button></div>` : ''}
-          <div class="tags"><span class="tag">${serviceLabel(o)}</span></div>
-          <div class="cardfoot cardfoot-verified">
-            <div class="cardfoot-price-col">
-              <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
-              <div class="cardfoot-actions-row">
-                <button type="button" class="secondary" data-view-offer="${esc(o.id)}">Ver perfil</button>
-                ${primaryBtn}
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>`;
-      }).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
-      <p class="fine">${isPaymentsEnabled()?'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.':'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
-    offersSection.querySelectorAll('[data-real-offer]').forEach(button=>button.onclick=()=>realBooking(realOffers.find(o=>o.id===button.dataset.realOffer)));
-    offersSection.querySelectorAll('[data-open-active-booking]').forEach(button => {
-      button.onclick = async () => {
-        const booking = activeCareBookings.find(b => b.id === button.dataset.openActiveBooking);
-        if (!booking) return;
-        const { data: { user } } = await getClient().auth.getUser();
-        if (!user) return login();
-        accountTab = 'services';
-        await serviceDetail(booking, user.id);
-      };
-    });
-    offersSection.querySelectorAll('[data-view-offer]').forEach(button=>button.onclick=()=>publicSitterProfile(button.dataset.viewOffer));
-    offersSection.querySelectorAll('[data-save-offer]').forEach(button => {
-      button.onclick = event => {
-        event.stopPropagation();
-        const id = button.dataset.saveOffer;
-        if (realSavedOffers.has(id)) realSavedOffers.delete(id);
-        else realSavedOffers.add(id);
-        persistRealSaved();
-        renderRealOffers();
-      };
-    });
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => renderMarketplaceOfferCard(o, { booking: careByOffer[o.id] || null })).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
+      <p class="fine">${isPaymentsEnabled() ? 'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.' : 'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
+    wireMarketplaceCardActions(offersSection);
     offersSection.querySelector('#real-offers-reset-filters')?.addEventListener('click', () => {
       searchedPlace = '';
       showFavoritesOff();
       renderRealOffers();
     });
     hydrateRealOfferPortraits(offersSection);
+    renderDemoMarketplaceOffers();
   }
   function showFavoritesOff() {
     const toggle = document.querySelector('#saved-toggle');
@@ -1231,15 +1283,14 @@ export function bootPetCity() {
     ev.preventDefault();
     setView('shop');
   }, true);
-  document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(renderRealOffers,0)));
-  document.querySelector('#saved-toggle')?.addEventListener('click', () => setTimeout(renderRealOffers, 0));
+  document.querySelectorAll('.chip').forEach(button=>button.addEventListener('click',()=>setTimeout(()=>{ renderRealOffers(); renderDemoMarketplaceOffers(); },0)));
+  document.querySelector('#saved-toggle')?.addEventListener('click', () => setTimeout(()=>{ renderRealOffers(); renderDemoMarketplaceOffers(); }, 0));
   document.querySelector('#search')?.addEventListener('submit', event => {
-    if (realOffers.length) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      searchedPlace = document.querySelector('#place').value.trim().split(',')[0].toLowerCase();
-      renderRealOffers();
-    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    searchedPlace = document.querySelector('#place').value.trim().split(',')[0].toLowerCase();
+    if (realOffers.length) renderRealOffers();
+    else renderDemoMarketplaceOffers();
   }, true);
   fetch('/api/config/payments').then(r => (r.ok ? r.json() : {})).then(j => {
     if (j?.enabled) window.PETCITY_PAYMENTS = true;
