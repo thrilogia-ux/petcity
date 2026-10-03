@@ -31,6 +31,27 @@ h1{font-size:clamp(28px,3vw,38px);line-height:1.2;letter-spacing:-1.1px}
 .field input,.field select{color:var(--pc-ink);font-size:14px}
 .searchbtn{border-radius:30px;background:var(--pc-accent);font-size:14px;font-weight:600;padding:13px 21px}
 .searchbtn:hover{background:#11594f}
+#guest-main .searchbar.petcity-search-pill{display:flex!important;flex-wrap:nowrap;align-items:stretch;grid-template-columns:unset!important;max-width:920px;margin:0 auto 6px;padding:8px 10px 8px 0;border:1px solid var(--pc-line);border-radius:999px;box-shadow:0 1px 2px #0000000a,0 6px 20px #0000000f;background:#fff}
+.petcity-search-pill .search-segment{flex:1 1 0;min-width:0;padding:10px 20px;border-right:1px solid var(--pc-line);background:transparent;transition:background .15s ease;border-radius:0}
+.petcity-search-pill .search-segment-place{padding-left:26px;border-radius:999px 0 0 999px}
+.petcity-search-pill .search-segment:hover,.petcity-search-pill .search-segment:focus-within{background:var(--pc-soft)}
+.petcity-search-pill .search-segment label{display:block;margin:0 0 4px;font-size:12px;font-weight:700;color:var(--pc-ink);letter-spacing:.01em}
+.petcity-search-pill .search-segment input,.petcity-search-pill .search-segment select{display:block;width:100%;border:0;background:transparent;padding:0;margin:0;color:var(--pc-ink);font-size:14px;line-height:1.35;min-height:20px}
+.petcity-search-pill .search-segment input[type=date]{color-scheme:light}
+.petcity-search-pill .search-segment-pet{border-right:none;flex:0.75 1 0;padding-right:12px}
+.petcity-search-pill .search-segment[hidden]{display:none!important}
+.petcity-search-pill .searchbtn-icon{flex:0 0 auto;width:48px;height:48px;min-height:48px;margin:6px 6px 6px 2px;padding:0;border:0;border-radius:50%;background:var(--pc-accent);color:#fff;display:grid;place-items:center;align-self:center;box-shadow:0 2px 8px #176b6040}
+.petcity-search-pill .searchbtn-icon:hover{background:#11594f}
+.petcity-search-pill .searchbtn-icon svg{display:block}
+#guest-main .search-hint{max-width:920px;margin:6px auto 0;padding:0 12px;font-size:13px;text-align:left}
+@media(max-width:900px){
+  #guest-main .searchbar.petcity-search-pill{flex-wrap:wrap;border-radius:28px;padding:10px 12px 12px;max-width:100%}
+  .petcity-search-pill .search-segment{flex:1 1 calc(50% - 8px);border-right:0;border-bottom:1px solid var(--pc-line);border-radius:16px!important;padding:12px 14px}
+  .petcity-search-pill .search-segment-place,.petcity-search-pill .search-segment-pet{flex:1 1 100%}
+  .petcity-search-pill .search-segment-pet{border-bottom:none}
+  .petcity-search-pill .searchbtn-icon{margin:8px auto 4px;width:100%;max-width:280px;height:44px;border-radius:24px}
+  .petcity-search-pill .searchbtn-icon svg{margin-right:6px}
+}
 .categories{gap:9px;padding:20px 0 24px}
 .chip{border:1px solid #ddd;background:#fff;border-radius:30px;padding:10px 15px;color:var(--pc-ink);font-weight:500;font-size:14px;min-height:44px}
 .chip:hover{border-color:#999;background:var(--pc-soft)}
