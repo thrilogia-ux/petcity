@@ -235,7 +235,10 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .real-offers-block .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
 .my-active-care-block{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--pc-line)}
 .my-active-care-label{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--pc-accent)}
-.card-my-active-care,.card-offer-active-care{background:linear-gradient(160deg,#f3fbf8 0%,#fff 55%);border-color:#c5e8de}
+.card-my-active-care,.real-offers-block .card-sitter-real.card-offer-active-care{background:linear-gradient(165deg,#dff5ec 0%,#f0fbf7 38%,#fff 100%);border-color:#8fd4c0;box-shadow:0 10px 32px #1a7a6214,inset 0 0 0 1px #c8ebe2}
+.real-offers-block .card-sitter-real.card-offer-active-care:hover{border-color:#5ec4a8;box-shadow:0 12px 36px #1a7a6220,inset 0 0 0 1px #b5e5d8}
+.chip-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;margin-left:4px;padding:0 5px;border-radius:999px;background:#173e3a;color:#fff;font-size:11px;font-weight:700;line-height:1}
+.chip.active .chip-count{background:#fff;color:#155b51}
 .card-my-active-care .cardbody-full{padding:4px 2px}
 .badge-active-care{display:inline-block;background:#d4f0e8;color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600}
 .badge-active-care-inline{margin-bottom:0}

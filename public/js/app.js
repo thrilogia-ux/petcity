@@ -997,6 +997,7 @@ export function bootPetCity() {
   }
   function updateDemoExploreVisibility() {
     document.body.classList.toggle('has-verified-offers', realOffers.length > 0);
+    syncMyServicesChip();
     syncDemoMapWithList();
     renderDemoMarketplaceOffers();
   }
@@ -1043,10 +1044,30 @@ export function bootPetCity() {
   function activeCareByOfferId() {
     return Object.fromEntries(activeCareBookings.map(b => [b.offer_id, b]));
   }
+  function landingCategory() {
+    return document.querySelector('.chip.active')?.dataset.category || 'Todos';
+  }
+  function syncMyServicesChip() {
+    const chip = document.getElementById('chip-my-services');
+    const countEl = document.getElementById('my-services-count');
+    if (!chip) return;
+    const n = activeCareBookings.length;
+    chip.hidden = n === 0;
+    if (countEl) countEl.textContent = n ? String(n) : '';
+    if (n === 0 && chip.classList.contains('active')) {
+      chip.classList.remove('active');
+      document.querySelector('.chip[data-category="Todos"]')?.classList.add('active');
+    }
+  }
   function filterShownOffers(list, { demo = false } = {}) {
-    const category = document.querySelector('.chip.active')?.dataset.category || 'Todos';
+    const category = landingCategory();
     const savedOnly = document.querySelector('#saved-toggle')?.getAttribute('aria-pressed') === 'true';
+    const activeOfferIds = new Set(activeCareBookings.map(b => b.offer_id));
     return list.filter(o => {
+      if (category === 'Mis servicios') {
+        if (demo) return false;
+        return activeOfferIds.has(o.id);
+      }
       if (category !== 'Todos' && serviceLabels[o.service] !== category) return false;
       if (searchedPlace && !o.city.toLowerCase().includes(searchedPlace)) return false;
       if (savedOnly && !(demo ? demoSavedOffers.has(o.id) : realSavedOffers.has(o.id))) return false;
@@ -1148,6 +1169,10 @@ export function bootPetCity() {
   }
   function renderDemoMarketplaceOffers() {
     if (!demoOffersSection) return;
+    if (landingCategory() === 'Mis servicios') {
+      demoOffersSection.hidden = true;
+      return;
+    }
     const shown = filterShownOffers(DEMO_MARKETPLACE_OFFERS, { demo: true });
     demoOffersSection.hidden = false;
     demoOffersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length === 1 ? '' : 's'} simulada${shown.length === 1 ? '' : 's'}</h3></div>
@@ -1180,18 +1205,27 @@ export function bootPetCity() {
       return;
     }
     offersSection.hidden = false;
+    const category = landingCategory();
     const shown = filterShownOffers(realOffers);
     const careByOffer = activeCareByOfferId();
     const shownOfferIds = new Set(shown.map(o => o.id));
-    const activeNotInList = activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
-    offersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">${shown.length} oferta${shown.length === 1 ? '' : 's'} verificada${shown.length === 1 ? '' : 's'}</h3></div>
+    const activeNotInList = category === 'Mis servicios' ? [] : activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
+    const headTitle = category === 'Mis servicios'
+      ? `${shown.length} servicio${shown.length === 1 ? '' : 's'} activo${shown.length === 1 ? '' : 's'}`
+      : `${shown.length} oferta${shown.length === 1 ? '' : 's'} verificada${shown.length === 1 ? '' : 's'}`;
+    const emptyMyServices = category === 'Mis servicios'
+      ? emptyStateBox('No tenés servicios activos', 'Cuando un cuidador acepte tu solicitud, aparecerá acá.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los cuidadores</button>')
+      : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>');
+    offersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">${category === 'Mis servicios' ? 'Tus cuidados' : 'Verificados por PetCity'}</div><h3 class="real-offers-title">${headTitle}</h3></div>
       ${activeNotInList.length ? `<div class="my-active-care-block"><p class="my-active-care-label">Tus servicios activos (otros filtros)</p><div class="cards real-offer-cards">${activeNotInList.map(renderActiveCareLandingCard).join('')}</div></div>` : ''}
-      <div class="cards real-offer-cards">${shown.length ? shown.map(o => renderMarketplaceOfferCard(o, { booking: careByOffer[o.id] || null })).join('') : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>')}</div>
+      <div class="cards real-offer-cards">${shown.length ? shown.map(o => renderMarketplaceOfferCard(o, { booking: careByOffer[o.id] || null })).join('') : emptyMyServices}</div>
       <p class="fine">${isPaymentsEnabled() ? 'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.' : 'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     wireMarketplaceCardActions(offersSection);
     offersSection.querySelector('#real-offers-reset-filters')?.addEventListener('click', () => {
       searchedPlace = '';
       showFavoritesOff();
+      document.querySelector('.chip.active')?.classList.remove('active');
+      document.querySelector('.chip[data-category="Todos"]')?.classList.add('active');
       renderRealOffers();
     });
     hydrateRealOfferPortraits(offersSection);
