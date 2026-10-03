@@ -1209,16 +1209,27 @@ export function bootPetCity() {
     const shown = filterShownOffers(realOffers);
     const careByOffer = activeCareByOfferId();
     const shownOfferIds = new Set(shown.map(o => o.id));
-    const activeNotInList = category === 'Mis servicios' ? [] : activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
+    const pinnedActive = category === 'Mis servicios'
+      ? []
+      : activeCareBookings.filter(b => !shownOfferIds.has(b.offer_id));
+    const pinnedCards = pinnedActive.map(b => {
+      const o = realOffers.find(x => x.id === b.offer_id);
+      return o ? renderMarketplaceOfferCard(o, { booking: b }) : renderActiveCareLandingCard(b);
+    });
+    const filteredCards = shown.map(o => renderMarketplaceOfferCard(o, { booking: careByOffer[o.id] || null }));
+    const listHtml = [...pinnedCards, ...filteredCards].join('');
     const headTitle = category === 'Mis servicios'
       ? `${shown.length} servicio${shown.length === 1 ? '' : 's'} activo${shown.length === 1 ? '' : 's'}`
       : `${shown.length} oferta${shown.length === 1 ? '' : 's'} verificada${shown.length === 1 ? '' : 's'}`;
     const emptyMyServices = category === 'Mis servicios'
       ? emptyStateBox('No tenés servicios activos', 'Cuando un cuidador acepte tu solicitud, aparecerá acá.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los cuidadores</button>')
       : emptyStateBox('Ningún cuidador con estos filtros', 'Probá otra zona, categoría o desactivá “Guardados”.', '<button type="button" class="secondary" id="real-offers-reset-filters">Ver todos los verificados</button>');
+    const pinnedHint = pinnedActive.length && category !== 'Mis servicios'
+      ? '<p class="fine marketplace-pinned-hint">Tu servicio activo se mantiene visible aunque no coincida con el filtro.</p>'
+      : '';
     offersSection.innerHTML = `<div class="results-head results-head-compact"><div class="eyebrow">${category === 'Mis servicios' ? 'Tus cuidados' : 'Verificados por PetCity'}</div><h3 class="real-offers-title">${headTitle}</h3></div>
-      ${activeNotInList.length ? `<div class="my-active-care-block"><p class="my-active-care-label">Tus servicios activos (otros filtros)</p><div class="cards real-offer-cards">${activeNotInList.map(renderActiveCareLandingCard).join('')}</div></div>` : ''}
-      <div class="cards real-offer-cards">${shown.length ? shown.map(o => renderMarketplaceOfferCard(o, { booking: careByOffer[o.id] || null })).join('') : emptyMyServices}</div>
+      ${pinnedHint}
+      <div class="cards real-offer-cards marketplace-offer-stack">${listHtml || emptyMyServices}</div>
       <p class="fine">${isPaymentsEnabled() ? 'Podés pagar con Mercado Pago (sandbox) tras la aceptación del cuidador.' : 'La solicitud no incluye pago hasta habilitar Mercado Pago.'} Requiere migraciones 006+ en Supabase.</p>`;
     wireMarketplaceCardActions(offersSection);
     offersSection.querySelector('#real-offers-reset-filters')?.addEventListener('click', () => {

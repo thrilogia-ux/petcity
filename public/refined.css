@@ -232,7 +232,7 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
-.real-offers-block .real-offer-cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden}
+.real-offers-block .real-offer-cards,.marketplace-offer-stack.cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden;grid-template-columns:none}
 .my-active-care-block{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--pc-line)}
 .my-active-care-label{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--pc-accent)}
 .card-my-active-care,.real-offers-block .card-sitter-real.card-offer-active-care{background:linear-gradient(165deg,#dff5ec 0%,#f0fbf7 38%,#fff 100%);border-color:#8fd4c0;box-shadow:0 10px 32px #1a7a6214,inset 0 0 0 1px #c8ebe2}
@@ -244,10 +244,15 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .badge-active-care-inline{margin-bottom:0}
 #demo-real-offers.real-offers-block{margin-top:0;padding-top:22px;border-top:1px solid var(--pc-line)}
 #marketplace-list #real-offers:not([hidden])+#demo-real-offers{border-top-width:0;padding-top:8px;margin-top:0}
-#guest-main .content > section:first-of-type{grid-column:1;min-width:0}
-#guest-main .content .marketplace-list-column{display:flex;flex-direction:column;gap:0;min-width:0}
-#guest-main .content > section.mapwrap{grid-column:2;grid-row:1;align-self:start}
-@media(max-width:1000px){#guest-main .content > section.mapwrap{grid-column:1;grid-row:auto}}
+#guest-main .content{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:20px;align-items:start}
+#guest-main .content > section:first-of-type{grid-column:1;min-width:0;display:flex;flex-direction:column;gap:0;width:100%}
+#guest-main .content .marketplace-list-column{display:flex;flex-direction:column;gap:0;min-width:0;width:100%;max-width:100%}
+#real-offers,#demo-real-offers{width:100%;max-width:100%;min-width:0}
+#real-offers .marketplace-offer-stack,#demo-real-offers .marketplace-offer-stack{width:100%;max-width:100%}
+.real-offers-block .results-head-compact,.marketplace-pinned-hint{width:100%;max-width:100%}
+.marketplace-pinned-hint{margin:0 0 12px;color:var(--pc-muted)}
+#guest-main .content > section.mapwrap{grid-column:2;grid-row:1;align-self:start;min-width:0}
+@media(max-width:1000px){#guest-main .content{grid-template-columns:1fr}#guest-main .content > section.mapwrap{grid-column:1;grid-row:auto}}
 #guest-main .content .results-head[hidden],#cards[hidden]{display:none!important}
 .card-offer-active-care .badge-verified{display:none}
 .map.real-ready.map-verified-only:after{content:'Cuidadores verificados · OpenStreetMap'}
