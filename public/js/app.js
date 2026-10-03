@@ -962,11 +962,12 @@ export function bootPetCity() {
   marketplaceListColumn.id='marketplace-list';
   marketplaceListColumn.className='marketplace-list-column';
   marketplaceListColumn.append(offersSection, demoOffersSection);
-  const contentRoot=document.querySelector('#guest-main .content');
   const cardsEl=document.querySelector('#guest-main .content #cards');
-  if(contentRoot){
-    if(cardsEl) contentRoot.insertBefore(marketplaceListColumn, cardsEl);
-    else contentRoot.appendChild(marketplaceListColumn);
+  const listMount=cardsEl?.parentElement;
+  if(listMount){
+    listMount.insertBefore(marketplaceListColumn, cardsEl);
+  } else {
+    document.querySelector('#guest-main .content')?.appendChild(marketplaceListColumn);
   }
   const DEMO_MARKETPLACE_OFFERS = [
     { id: 'demo-lucia-paseo', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Paseos tranquilos y atención personalizada. Te comparto novedades durante el cuidado.', service: 'paseo', price_ars: 8500, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
@@ -1003,7 +1004,6 @@ export function bootPetCity() {
     return `<div class="results-head results-head-compact"><div class="eyebrow">Verificados por PetCity</div><h3 class="real-offers-title">Cargando cuidadores…</h3></div><div class="skeleton-cards" aria-hidden="true">${[1, 2].map(() => '<div class="skeleton-card"><div class="skeleton-photo"></div><div class="skeleton-lines"><span></span><span></span><span></span></div></div>').join('')}</div>`;
   }
   initDemoExploreBlock();
-  if (!contentRoot) console.warn('PetCity: no se encontró #guest-main .content; ofertas simuladas no montadas.');
   function sitterCardPhotoPlaceholder(name) {
     const label = encodeURIComponent(String(name || 'Cuidador').trim().slice(0, 24));
     return `https://ui-avatars.com/api/?name=${label}&background=c7f3e8&color=173e3a&size=280&bold=true`;

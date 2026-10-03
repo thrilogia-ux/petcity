@@ -241,11 +241,10 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .badge-active-care-inline{margin-bottom:0}
 #demo-real-offers.real-offers-block{margin-top:0;padding-top:22px;border-top:1px solid var(--pc-line)}
 #marketplace-list #real-offers:not([hidden])+#demo-real-offers{border-top-width:0;padding-top:8px;margin-top:0}
-#guest-main .content > .marketplace-list-column{grid-column:1;min-width:0;display:flex;flex-direction:column;gap:0}
-#guest-main .content > .results-head{grid-column:1}
-#guest-main .content > .result-tools{grid-column:2;grid-row:1}
-#guest-main .content > .mapwrap{grid-column:2;grid-row:2;align-self:start}
-@media(max-width:1000px){#guest-main .content > .mapwrap{grid-column:1;grid-row:auto}}
+#guest-main .content > section:first-of-type{grid-column:1;min-width:0}
+#guest-main .content .marketplace-list-column{display:flex;flex-direction:column;gap:0;min-width:0}
+#guest-main .content > section.mapwrap{grid-column:2;grid-row:1;align-self:start}
+@media(max-width:1000px){#guest-main .content > section.mapwrap{grid-column:1;grid-row:auto}}
 #guest-main .content .results-head[hidden],#cards[hidden]{display:none!important}
 .card-offer-active-care .badge-verified{display:none}
 .map.real-ready.map-verified-only:after{content:'Cuidadores verificados · OpenStreetMap'}
