@@ -306,14 +306,18 @@ export function bootPetCity() {
         ownerFetchError: myOpenReqRes.error?.message,
       }) : '';
       const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o publicá una solicitud abierta para que varios se ofrezcan.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button> <button type="button" class="secondary" id="create-open-request">Solicitud abierta</button>');
+      let sitterBusiness = null;
+      let sitterBusinessError = null;
+      if (application?.status === 'approved') {
+        const bizRes = await api.rpc('petcity_sitter_business_dashboard');
+        if (bizRes.error) sitterBusinessError = bizRes.error.message;
+        else sitterBusiness = bizRes.data;
+      }
       const contents = {
         pets: `<h3>Mis mascotas</h3>${petCards}${pets.length ? '<button class="primary" id="add-real-pet">Agregar mascota</button>' : ''}`,
         services: `${openRequestGuidePanel}<h3>Mis cuidados</h3>${sitterOpenSection}${pets.length || application?.status !== 'approved' ? `<div class="dash-tile open-request-tile open-request-tile-owner" style="margin:10px 0 16px"><strong>Paso dueño: publicar búsqueda</strong><p class="fine">Zona + servicio + fechas. Después aparece una tarjeta <strong>Solicitud abierta · …</strong> acá abajo.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>` : ''}${openRequestOwnerCards}${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
-        sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
-          ${application?.status === 'approved' ? `<p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa público (zona aproximada).' : 'Para aparecer en el mapa de la home, marcá tu zona una vez.'}</p>` : ''}
-          <button class="dash-call" id="real-application">${application ? 'Ver postulación' : 'Empezar postulación'}</button>
-          ${application?.status === 'approved' ? '<button class="dash-call" id="go-sitter-open-requests">Solicitudes abiertas de dueños</button><button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-walk-rules">Reglas de paseo</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
+        sitter: renderSitterTabContent(application, sitterBusiness, sitterBusinessError, bookingList, auth.user.id),
         community: ''
       };
       fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
@@ -332,7 +336,10 @@ export function bootPetCity() {
       document.querySelectorAll('[data-pet-photo]').forEach(async node=>{if(node.dataset.petPhoto){const url=await signedPhoto(node.dataset.petPhoto);if(url)node.innerHTML=`<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;}});
       document.querySelectorAll('[data-service]').forEach(button=>button.onclick=()=>serviceDetail(bookingList.find(b=>b.id===button.dataset.service),auth.user.id));
       document.querySelector('#profile-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.target);const changes={display_name:String(form.get('display_name')).trim()};if(enhancedReady)Object.assign(changes,{phone:String(form.get('phone')).trim(),address:String(form.get('address')).trim(),city:String(form.get('city')).trim()});const {error}=await api.from('profiles').update(changes).eq('id',auth.user.id);if(error)status(error.message);else dashboard();});
-      document.querySelector('#real-application')?.addEventListener('click',()=>applicationForm(application));
+      document.querySelector('#real-application')?.addEventListener('click', () => applicationForm(application));
+      document.querySelector('#edit-public-profile')?.addEventListener('click', () => sitterPublicProfileEditor(application));
+      document.querySelector('#preview-public-card')?.addEventListener('click', () => previewOwnPublicCard(application));
+      document.querySelector('#go-sitter-services-tab')?.addEventListener('click', () => { accountTab = 'services'; dashboard(); });
       document.querySelector('#go-sitter-open-requests')?.addEventListener('click', () => {
         accountTab = 'services';
         dashboard();
@@ -674,6 +681,107 @@ export function bootPetCity() {
     const sharedPost = new URLSearchParams(location.search).get('post');
     if (sharedPost) document.getElementById(`post-${sharedPost}`)?.scrollIntoView({ block: 'center' });
     communityBusy = false;
+  }
+  function renderSitterTabContent(application, sitterBusiness, sitterBusinessError, bookingList, userId) {
+    if (!application) {
+      return `<h3>Quiero cuidar mascotas</h3><p>Tu oferta necesita revisión antes de publicarse en la home.</p><button class="primary" id="real-application">Empezar postulación</button>`;
+    }
+    if (application.status !== 'approved') {
+      return `<h3>Quiero cuidar mascotas</h3><p>Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · ' + esc(application.review_note) : ''}</p><button class="dash-call" id="real-application">Ver postulación</button>`;
+    }
+    const stats = sitterBusiness || {};
+    const fmt = n => '$' + Number(n || 0).toLocaleString('es-AR');
+    const activeJobs = (bookingList || []).filter(b => b.owner_id !== userId && ['accepted', 'in_progress', 'payment_pending'].includes(b.status));
+    const pendingReq = (bookingList || []).filter(b => b.owner_id !== userId && b.status === 'pending');
+    const settlements = Array.isArray(stats.recent_settlements) ? stats.recent_settlements : [];
+    return `<h3>Centro cuidador</h3>
+      <p class="fine">Gestioná tu tarjeta pública, servicios e ingresos. Solo visible si tu postulación está <strong>aprobada</strong>.</p>
+      ${sitterBusinessError ? `<p class="open-request-guide-warn">${esc(sitterBusinessError)}${/schema cache|could not find/i.test(sitterBusinessError) ? ' Ejecutá supabase/019_sitter_profile_business.sql en Supabase.' : ''}</p>` : ''}
+      <div class="sitter-hub-stats">
+        <div class="sitter-hub-stat"><span class="sitter-hub-stat-val">${stats.active_jobs ?? activeJobs.length}</span><span class="sitter-hub-stat-label">Trabajos vigentes</span></div>
+        <div class="sitter-hub-stat"><span class="sitter-hub-stat-val">${stats.pending_requests ?? pendingReq.length}</span><span class="sitter-hub-stat-label">Solicitudes por responder</span></div>
+        <div class="sitter-hub-stat"><span class="sitter-hub-stat-val">${fmt(stats.gross_estimated_ars)}</span><span class="sitter-hub-stat-label">Ingresos estimados</span></div>
+        <div class="sitter-hub-stat"><span class="sitter-hub-stat-val">${fmt(stats.collected_ars)}</span><span class="sitter-hub-stat-label">Cobrado (MP)</span></div>
+      </div>
+      <p class="fine sitter-hub-payout-note">Pendiente de liquidación (estimado): <strong>${fmt(stats.pending_payout_ars)}</strong> · Los cobros reales dependen de Mercado Pago cuando esté activo en producción.</p>
+      <div class="sitter-hub-primary">
+        <button type="button" class="primary" id="edit-public-profile">Editar tarjeta y perfil público</button>
+        <button type="button" class="secondary" id="preview-public-card">Vista previa en la home</button>
+      </div>
+      <h4 class="account-subhead">Operación diaria</h4>
+      <div class="sitter-hub-actions">
+        <button type="button" class="dash-call" id="go-sitter-services-tab">Trabajos y solicitudes abiertas</button>
+        <button type="button" class="dash-call" id="go-sitter-open-requests">Solicitudes abiertas de dueños</button>
+        <button type="button" class="dash-call" id="manage-offers">Servicios y precios</button>
+        <button type="button" class="dash-call" id="upload-offer-photo">Fotos del servicio</button>
+        <button type="button" class="secondary" id="sitter-map-location">Zona en el mapa</button>
+        <button type="button" class="secondary" id="manage-walk-rules">Reglas de paseo</button>
+        <button type="button" class="secondary" id="manage-availability">Agenda</button>
+      </div>
+      ${activeJobs.length ? `<h4 class="account-subhead">Trabajos vigentes</h4>${activeJobs.slice(0, 5).map(b => `<div class="dash-tile" style="margin:8px 0"><strong>${esc(stateLabels[b.status] || b.status)}</strong> · ${esc(b.start_date)} · ${fmt(b.total_price_ars)}<button type="button" class="dash-call" data-service="${esc(b.id)}">Ver servicio</button></div>`).join('')}` : ''}
+      ${settlements.length ? `<h4 class="account-subhead">Últimas liquidaciones</h4><ul class="sitter-settlements-list">${settlements.map(p => `<li><strong>${fmt(p.net_ars)}</strong> netos · ${esc(String(p.status))} · servicio ${esc(String(p.service_date || ''))}</li>`).join('')}</ul>` : '<p class="fine">Todavía no hay liquidaciones por MP. Completá servicios y activá pagos cuando estén disponibles.</p>'}
+      <p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa (zona aproximada).' : 'Marcá tu zona en el mapa para aparecer en la búsqueda.'}</p>`;
+  }
+  async function previewOwnPublicCard(application) {
+    if (!application?.id) return;
+    const { data: offers } = await getClient().from('sitter_offers').select('id,service').eq('sitter_id', application.id).order('service').limit(1);
+    if (!offers?.length) {
+      open('<h2 id="dialog-title">Sin servicios publicados</h2><p>Cargá al menos un precio en Servicios y precios.</p>');
+      return;
+    }
+    publicSitterProfile(offers[0].id);
+  }
+  async function sitterPublicProfileEditor(application) {
+    if (!application || application.status !== 'approved') return;
+    const homeTypes = [
+      ['', 'Sin especificar'],
+      ['casa', 'Casa'],
+      ['depto', 'Departamento'],
+      ['finca', 'Finca con patio'],
+    ];
+    open(`<div class="eyebrow">VITRINA PÚBLICA</div><h2 id="dialog-title">Editar tarjeta y perfil</h2>
+      <p class="fine">Lo que guardes se ve en la home y en tu ficha. Las fotos nuevas pasan por moderación.</p>
+      <form id="sitter-public-profile-form" class="account-form">
+        <label>Nombre público<input name="public_name" required minlength="2" maxlength="80" value="${esc(application.public_name || '')}"></label>
+        <label>Ciudad / barrio (zona visible)<input name="city" required minlength="2" maxlength="100" value="${esc(application.city || '')}"></label>
+        <label>Barrio (opcional)<input name="neighborhood" maxlength="100" value="${esc(application.neighborhood || '')}"></label>
+        <label>Frase destacada (headline)<input name="headline" maxlength="120" placeholder="Ej.: Paseos con paciencia y fotos en vivo" value="${esc(application.headline || '')}"></label>
+        <label>Descripción en la tarjeta<textarea name="bio" required minlength="30" maxlength="2000" rows="5">${esc(application.bio || '')}</textarea></label>
+        <label>Máx. mascotas a la vez<input name="max_pets" type="number" min="1" max="20" value="${esc(application.max_pets ?? '')}" placeholder="Opcional"></label>
+        <label>Tipo de hogar<select name="home_type">${homeTypes.map(([v, l]) => `<option value="${v}"${application.home_type === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label><input type="checkbox" name="accepts_cats" ${application.accepts_cats !== false ? 'checked' : ''}> Acepto gatos</label>
+        <label><input type="checkbox" name="accepts_large_dogs" ${application.accepts_large_dogs !== false ? 'checked' : ''}> Acepto perros grandes</label>
+        <button type="submit" class="primary">Guardar perfil público</button>
+      </form>
+      <p id="account-status" role="status"></p>
+      <button type="button" class="secondary" id="back-sitter-hub">Volver</button>`);
+    document.querySelector('#back-sitter-hub').onclick = dashboard;
+    document.querySelector('#sitter-public-profile-form').onsubmit = async ev => {
+      ev.preventDefault();
+      const f = new FormData(ev.target);
+      const maxRaw = String(f.get('max_pets') || '').trim();
+      const { error } = await getClient().rpc('petcity_update_sitter_public_profile', {
+        p_public_name: String(f.get('public_name')).trim(),
+        p_city: String(f.get('city')).trim(),
+        p_neighborhood: String(f.get('neighborhood') || '').trim() || null,
+        p_headline: String(f.get('headline') || '').trim() || null,
+        p_bio: String(f.get('bio')).trim(),
+        p_max_pets: maxRaw ? Number(maxRaw) : null,
+        p_home_type: String(f.get('home_type') || '') || null,
+        p_accepts_cats: f.get('accepts_cats') === 'on',
+        p_accepts_large_dogs: f.get('accepts_large_dogs') === 'on',
+      });
+      if (error) {
+        const msg = String(error.message || '');
+        if (/petcity_update_sitter_public_profile|schema cache/i.test(msg)) {
+          status('Ejecutá supabase/019_sitter_profile_business.sql en Supabase para habilitar la edición.');
+        } else status(error.message);
+      } else {
+        closeModal();
+        refreshRealOffers();
+        dashboard();
+      }
+    };
   }
   async function applicationForm(existing) {
     if (!marketplaceReady) {open('<h2 id="dialog-title">Postulaciones en preparación</h2><p>Estamos terminando de habilitar ofertas y solicitudes reales.</p><button class="secondary" id="back-account">Volver</button>');document.querySelector('#back-account').onclick=dashboard;return;}

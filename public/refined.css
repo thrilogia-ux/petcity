@@ -258,6 +258,17 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .open-request-offer-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
 .open-request-sent{color:#228a7d;font-weight:600}
 .account-subhead{margin:20px 0 10px;font-size:15px;font-weight:700;color:var(--pc-ink)}
+.sitter-hub-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 12px}
+.sitter-hub-stat{padding:14px 12px;border:1px solid var(--pc-line);border-radius:16px;background:#fff;display:flex;flex-direction:column;gap:4px;min-height:100%}
+.sitter-hub-stat-val{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--pc-ink);line-height:1.2}
+.sitter-hub-stat-label{font-size:12px;line-height:1.35;color:var(--pc-muted)}
+.sitter-hub-payout-note{margin:0 0 16px;font-size:13px}
+.sitter-hub-primary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.sitter-hub-primary .primary{min-width:220px}
+.sitter-hub-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.sitter-settlements-list{margin:0 0 16px;padding-left:18px;font-size:13px;line-height:1.5;color:var(--pc-ink)}
+@media(max-width:800px){.sitter-hub-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.sitter-hub-stats{grid-template-columns:1fr}}
 @media(max-width:650px){
   .open-request-landing-inner .primary{width:100%;min-width:0}
 }
