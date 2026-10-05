@@ -240,6 +240,8 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .spp-trust-check{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#228a7d;color:#fff;font-size:12px;font-weight:800}
 .tag-walk{background:#e8f4fd;color:#1a5a7a;border-radius:10px}
 .tag-walk-individual{background:#eef8f4;color:#196b5c}
+.open-request-sitter-band{margin:0 0 20px;padding:16px 0 8px;border-bottom:1px solid var(--pc-line)}
+.open-request-sitter-lead{margin:0 0 14px;max-width:52ch}
 .open-request-landing{margin:0 auto 24px;max-width:920px;padding:0 4px}
 .open-request-landing-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;padding:18px 20px;border:1px solid var(--pc-line);border-radius:20px;background:linear-gradient(135deg,#f3fbf8 0%,#fff 55%)}
 .open-request-landing-inner h2{margin:6px 0 0;font-size:clamp(18px,2vw,22px);font-weight:700;line-height:1.25;letter-spacing:-.02em}

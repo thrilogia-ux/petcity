@@ -192,7 +192,7 @@ export function bootPetCity() {
     const app = appRes.data;
     const petCount = petsRes.count ?? 0;
     if (isAdmin) accountTab = 'pets';
-    else if (app?.status === 'approved') accountTab = (activeCare || sitterPending) ? 'services' : 'sitter';
+    else if (app?.status === 'approved') accountTab = 'services';
     else if (activeCare) accountTab = 'services';
     else if (!petCount) accountTab = 'pets';
     else accountTab = 'pets';
@@ -260,19 +260,37 @@ export function bootPetCity() {
         const statusLabel = r.status === 'open' ? 'Abierta · esperando cuidadores' : r.status === 'chosen' ? 'Cuidador elegido' : 'Cancelada';
         return `<div class="dash-tile open-request-card" style="margin:10px 0"><strong>Solicitud abierta · ${esc(serviceLabels[r.service] || r.service)}</strong><p>${esc(statusLabel)} · ${esc(r.city)} · ${esc(r.start_date)}${r.end_date !== r.start_date ? ' al ' + esc(r.end_date) : ''}</p><p class="fine">${interested.length ? `${interested.length} cuidador${interested.length === 1 ? '' : 'es'} se ofreció${interested.length === 1 ? '' : 'ron'}` : 'Todavía nadie se ofreció'}</p>${r.status === 'open' ? `<button type="button" class="dash-call" data-manage-open-request="${esc(r.id)}">Ver ofertas (${interested.length})</button> <button type="button" class="secondary" data-cancel-open-request="${esc(r.id)}">Cancelar</button>` : ''}</div>`;
       }).join('');
+      let sitterOfferServices = [];
+      if (application?.status === 'approved') {
+        try {
+          const { data: so } = await api.from('sitter_offers').select('service').eq('sitter_id', application.id);
+          sitterOfferServices = (so || []).map(o => serviceLabels[o.service] || o.service);
+        } catch { /* ignore */ }
+      }
+      const sitterZoneHint = application?.city ? esc(application.city) : 'tu ciudad en la postulación';
       const sitterOpenCards = sitterOpenRequests.map(r => {
         const already = sitterInterestedRequestIds.has(r.id);
         return `<div class="dash-tile" style="margin:10px 0"><strong>Dueño busca ${esc(serviceLabels[r.service] || r.service)}</strong><p>⌖ ${esc(r.city)} · ${esc(r.start_date)}${r.end_date !== r.start_date ? ' al ' + esc(r.end_date) : ''}</p>${r.notes ? `<p class="fine">${esc(r.notes)}</p>` : ''}${already ? '<p class="fine open-request-sent">Ya enviaste tu interés.</p>' : `<button type="button" class="dash-call" data-sitter-open-interest="${esc(r.id)}">Me interesa</button>`}</div>`;
       }).join('');
+      const sitterOpenEmpty = application?.status === 'approved' && !sitterOpenRequests.length
+        ? emptyStateBox(
+          'Ninguna solicitud abierta en tu zona ahora',
+          `Aparecen acá cuando un dueño publica en una zona compatible con ${sitterZoneHint} y un servicio que vos ofrecés${sitterOfferServices.length ? ` (${esc(sitterOfferServices.join(', '))})` : ' — cargá precios en Modo cuidador → Mis servicios y precios'}.`,
+          '<button type="button" class="secondary" id="go-sitter-offers">Mis servicios y precios</button>',
+        )
+        : '';
+      const sitterOpenSection = application?.status === 'approved'
+        ? `<section class="open-request-sitter-band" aria-labelledby="open-request-sitter-head"><h4 class="account-subhead" id="open-request-sitter-head">Solicitudes abiertas de dueños (tu zona)</h4><p class="fine open-request-sitter-lead">Las publicaciones compatibles con tu barrio/ciudad y tus servicios activos. Respondé con <strong>Me interesa</strong>.</p>${sitterOpenCards || sitterOpenEmpty}</section>`
+        : '';
       const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o publicá una solicitud abierta para que varios se ofrezcan.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button> <button type="button" class="secondary" id="create-open-request">Solicitud abierta</button>');
       const contents = {
         pets: `<h3>Mis mascotas</h3>${petCards}${pets.length ? '<button class="primary" id="add-real-pet">Agregar mascota</button>' : ''}`,
-        services: `<h3>Mis cuidados</h3><p>Reservas directas o solicitudes abiertas donde elegís al cuidador.</p><div class="dash-tile open-request-tile" style="margin:10px 0 16px"><strong>Solicitud abierta</strong><p class="fine">Publicá zona, servicio y fechas. Varios cuidadores verificados pueden ofrecerse; vos elegís uno y se crea la reserva.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>${openRequestOwnerCards}${sitterOpenCards ? `<h4 class="account-subhead">Solicitudes en tu zona (cuidador)</h4>${sitterOpenCards}` : ''}${serviceCards}`,
+        services: `<h3>Mis cuidados</h3><p>${application?.status === 'approved' ? 'Como cuidador: revisá solicitudes abiertas arriba. Como dueño: publicá o gestioná tus reservas.' : 'Reservas directas o solicitudes abiertas donde elegís al cuidador.'}</p>${sitterOpenSection}${pets.length || application?.status !== 'approved' ? `<div class="dash-tile open-request-tile open-request-tile-owner" style="margin:10px 0 16px"><strong>Solicitud abierta (dueño)</strong><p class="fine">Publicá zona, servicio y fechas. Varios cuidadores verificados pueden ofrecerse; vos elegís uno y se crea la reserva.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>` : ''}${openRequestOwnerCards}${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
           ${application?.status === 'approved' ? `<p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa público (zona aproximada).' : 'Para aparecer en el mapa de la home, marcá tu zona una vez.'}</p>` : ''}
           <button class="dash-call" id="real-application">${application ? 'Ver postulación' : 'Empezar postulación'}</button>
-          ${application?.status === 'approved' ? '<button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-walk-rules">Reglas de paseo</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
+          ${application?.status === 'approved' ? '<button class="dash-call" id="go-sitter-open-requests">Solicitudes abiertas de dueños</button><button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-walk-rules">Reglas de paseo</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
         community: ''
       };
       fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
@@ -292,6 +310,12 @@ export function bootPetCity() {
       document.querySelectorAll('[data-service]').forEach(button=>button.onclick=()=>serviceDetail(bookingList.find(b=>b.id===button.dataset.service),auth.user.id));
       document.querySelector('#profile-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.target);const changes={display_name:String(form.get('display_name')).trim()};if(enhancedReady)Object.assign(changes,{phone:String(form.get('phone')).trim(),address:String(form.get('address')).trim(),city:String(form.get('city')).trim()});const {error}=await api.from('profiles').update(changes).eq('id',auth.user.id);if(error)status(error.message);else dashboard();});
       document.querySelector('#real-application')?.addEventListener('click',()=>applicationForm(application));
+      document.querySelector('#go-sitter-open-requests')?.addEventListener('click', () => {
+        accountTab = 'services';
+        dashboard();
+        setTimeout(() => document.querySelector('.open-request-sitter-band')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+      });
+      document.querySelector('#go-sitter-offers')?.addEventListener('click', () => sitterOffersManager(application));
       document.querySelector('#manage-offers')?.addEventListener('click',()=>sitterOffersManager(application));
       document.querySelector('#manage-walk-rules')?.addEventListener('click',()=>sitterWalkRulesForm(application));
       document.querySelector('#manage-availability')?.addEventListener('click',()=>sitterAvailabilityForm(application));
@@ -674,7 +698,25 @@ export function bootPetCity() {
       careNav.hidden = !user;
       document.body.classList.toggle('has-real-account', Boolean(user));
       await refreshOpenRequestNavHint(user);
+      await syncOpenRequestLandingForSession(user);
     } catch { accountNav.hidden = true; careNav.hidden = true; document.body.classList.remove('has-real-account'); }
+  }
+  async function syncOpenRequestLandingForSession(user) {
+    const band = document.getElementById('open-request-landing');
+    if (!band) return;
+    document.body.classList.remove('is-approved-sitter');
+    if (!user) {
+      band.hidden = false;
+      return;
+    }
+    try {
+      const { data: app } = await getClient().from('sitter_applications').select('status').eq('user_id', user.id).maybeSingle();
+      const approved = app?.status === 'approved';
+      document.body.classList.toggle('is-approved-sitter', approved);
+      band.hidden = approved;
+    } catch {
+      band.hidden = false;
+    }
   }
   async function refreshOpenRequestNavHint(user) {
     careNav.textContent = 'Mis cuidados';
@@ -1661,6 +1703,9 @@ export function bootPetCity() {
   }).catch(() => {});
   refreshRealOffers();
   initOpenRequestLanding();
+  void syncOpenRequestLandingForSession(null).then(() => {
+    getClient().auth.getUser().then(({ data: { user } }) => syncOpenRequestLandingForSession(user));
+  });
   window.petcityDemoRender?.();
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
   syncViewFromHash();
