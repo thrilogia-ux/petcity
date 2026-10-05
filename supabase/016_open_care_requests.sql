@@ -31,6 +31,11 @@ revoke all on public.open_care_requests, public.open_care_request_interests from
 grant select, insert, update on public.open_care_requests to authenticated;
 grant select, insert, update on public.open_care_request_interests to authenticated;
 
+drop policy if exists ocr_owner on public.open_care_requests;
+drop policy if exists ocr_sitter_read on public.open_care_requests;
+drop policy if exists ocri_owner_read on public.open_care_request_interests;
+drop policy if exists ocri_sitter on public.open_care_request_interests;
+
 create policy ocr_owner on public.open_care_requests for all to authenticated
   using (owner_id = (select auth.uid()))
   with check (owner_id = (select auth.uid()));

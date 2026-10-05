@@ -23,6 +23,8 @@ El usuario informó haber ejecutado hasta 005. Antes de tocar la base, comprobar
 
 Sin **016–017**, el botón «Publicar solicitud abierta» falla con *Could not find the function … schema cache*.
 
+**Re-ejecutar 016:** el archivo incluye `drop policy if exists` — no debería fallar por `ocr_owner already exists`. Si solo falta el **017** (016 ya corrió), ejecutá **solo** `017_open_care_zone_flex.sql`, no vuelvas a pegar el 016 entero.
+
 ## Proyecto nuevo / vacío
 
 Ejecutar una sola vez, en orden: 001 → 005 (ver lista histórica abajo), luego 006 → 013.
