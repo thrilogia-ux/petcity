@@ -903,6 +903,7 @@ export function bootPetCity() {
     const p = data;
     const photos = Array.isArray(p.photos) ? p.photos : [];
     const offerMeta = realOffers.find(o => o.id === offerId);
+    const ownProfile = mySitterOfferIds.has(offerId) || isOwnMarketplaceOffer(offerMeta);
     const portraitPlaceholder = sitterCardPhotoPlaceholder(p.public_name);
     const homeLabels = { casa: 'Casa', depto: 'Departamento', finca: 'Finca con patio' };
     const detailChips = [
@@ -944,11 +945,21 @@ export function bootPetCity() {
         <div class="spp-gallery" id="profile-photos">${photos.length ? '<p class="fine">Cargando fotos…</p>' : '<p class="spp-empty">El cuidador aún no tiene fotos aprobadas.</p>'}</div>
       </section>
       <footer class="spp-footer">
-        <button type="button" class="primary" id="book-from-profile">Solicitar cuidado</button>
+        ${ownProfile
+          ? '<p class="fine card-own-offer-note">Vista previa de <strong>tu</strong> perfil público. No podés reservarte a vos mismo; podés contratar a otros cuidadores.</p><button type="button" class="secondary" id="go-manage-own-offer">Ir a Modo cuidador</button>'
+          : '<button type="button" class="primary" id="book-from-profile">Solicitar cuidado</button>'}
       </footer>
       <p class="fine spp-note">Reseñas y fotos provienen de servicios completados y moderados en PetCity.</p>
     </article>`);
-    document.querySelector('#book-from-profile').onclick = () => realBooking(offerMeta || realOffers.find(o => o.id === offerId) || { id: offerId, ...p });
+    if (ownProfile) {
+      document.querySelector('#go-manage-own-offer').onclick = () => {
+        closeModal();
+        accountTab = 'sitter';
+        void ensureAccountScreen();
+      };
+    } else {
+      document.querySelector('#book-from-profile').onclick = () => realBooking(offerMeta || realOffers.find(o => o.id === offerId) || { id: offerId, ...p });
+    }
     const portraitEl = document.querySelector('#spp-portrait');
     const photoPath = offerMeta?.photo_path || photos[0]?.path;
     if (photoPath && portraitEl) {
@@ -1134,6 +1145,13 @@ export function bootPetCity() {
   if(demoMode)document.body.classList.add('demo-mode');
   let realOffers=[];
   let activeCareBookings = [];
+  let mySitterApplicationId = null;
+  let mySitterOfferIds = new Set();
+  function isOwnMarketplaceOffer(o) {
+    if (!o) return false;
+    if (mySitterOfferIds.has(o.id)) return true;
+    return Boolean(mySitterApplicationId && o.application_id === mySitterApplicationId);
+  }
   let searchedPlace='';
   const REAL_SAVED_KEY = 'petcity-saved-offers';
   const realSavedOffers = new Set(JSON.parse(localStorage.getItem(REAL_SAVED_KEY) || '[]'));
@@ -1320,9 +1338,12 @@ export function bootPetCity() {
   function renderMarketplaceOfferCard(o, { demo = false, booking = null } = {}) {
     const serviceLabel = esc(serviceLabels[o.service] || o.service);
     const activeCls = booking ? ' card-offer-active-care' : '';
+    const isOwn = !demo && !booking && isOwnMarketplaceOffer(o);
     const badge = booking
       ? `<span class="badge-active-care badge-active-care-inline">Tu servicio · ${esc(stateLabels[booking.status] || booking.status)}</span>`
-      : (demo ? '<span class="badge-verified">Verificación simulada</span>' : '<span class="badge-verified">Verificado</span>');
+      : isOwn
+        ? '<span class="badge-own-offer">Tu oferta</span>'
+        : (demo ? '<span class="badge-verified">Verificación simulada</span>' : '<span class="badge-verified">Verificado</span>');
     const saved = demo ? demoSavedOffers.has(o.id) : realSavedOffers.has(o.id);
     const saveAttr = demo ? 'data-save-demo-offer' : 'data-save-offer';
     const saveLabel = saved ? 'Quitar de guardados' : 'Guardar cuidador';
@@ -1330,9 +1351,11 @@ export function bootPetCity() {
     const photoPathAttr = !demo && o.photo_path ? ` data-photo-path="${esc(o.photo_path)}"` : '';
     const primaryBtn = booking
       ? `<button type="button" class="primary" data-open-active-booking="${esc(booking.id)}">Ver tu servicio</button>`
-      : demo
-        ? `<button type="button" class="primary" data-demo-booking="${esc(o.demoPersonId)}">Solicitar cuidado</button>`
-        : `<button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>`;
+      : isOwn
+        ? `<span class="card-own-offer-note">No podés reservarte. Editá en <button type="button" class="linkish" data-go-sitter-panel>Modo cuidador</button>.</span>`
+        : demo
+          ? `<button type="button" class="primary" data-demo-booking="${esc(o.demoPersonId)}">Solicitar cuidado</button>`
+          : `<button type="button" class="primary" data-real-offer="${esc(o.id)}">Solicitar cuidado</button>`;
     const viewAttr = demo ? 'data-view-demo-offer' : 'data-view-offer';
     const viewVal = demo ? esc(o.id) : esc(o.id);
     return `<article class="card card-sitter-real${activeCls}">
@@ -1365,6 +1388,13 @@ export function bootPetCity() {
     if (!demo) {
       root.querySelectorAll('[data-real-offer]').forEach(button => button.onclick = () => realBooking(realOffers.find(o => o.id === button.dataset.realOffer)));
       root.querySelectorAll('[data-view-offer]').forEach(button => button.onclick = () => publicSitterProfile(button.dataset.viewOffer));
+      root.querySelectorAll('[data-go-sitter-panel]').forEach(button => {
+        button.onclick = event => {
+          event.preventDefault();
+          accountTab = 'sitter';
+          void ensureAccountScreen();
+        };
+      });
       root.querySelectorAll('[data-save-offer]').forEach(button => {
         button.onclick = event => {
           event.stopPropagation();
@@ -1511,10 +1541,18 @@ export function bootPetCity() {
         return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path,max_pets:a.max_pets,walk_mode:a.walk_mode,walk_max_dogs:a.walk_max_dogs,reviewed_at:a.reviewed_at}));
       });
       realOffers = await attachSitterRatings(realOffers);
+      mySitterApplicationId = null;
+      mySitterOfferIds = new Set();
       activeCareBookings = [];
       try {
         const { data: { user } } = await getClient().auth.getUser();
         if (user) {
+          const { data: myApp } = await getClient().from('sitter_applications').select('id,status').eq('user_id', user.id).maybeSingle();
+          if (myApp?.status === 'approved') {
+            mySitterApplicationId = myApp.id;
+            const { data: myOffers } = await getClient().from('sitter_offers').select('id').eq('sitter_id', myApp.id);
+            mySitterOfferIds = new Set((myOffers || []).map(row => row.id));
+          }
           const { data: careRows } = await getClient().from('bookings')
             .select('id,status,offer_id,owner_id,pet_id,start_date,end_date,total_price_ars,sitter_offers(id,service,unit,sitter_applications(public_name,city))')
             .eq('owner_id', user.id)
@@ -1701,6 +1739,12 @@ export function bootPetCity() {
     if(!offer) return;
     const api=getClient(),{data:{user}}=await api.auth.getUser();
     if(!user) return login();
+    if (isOwnMarketplaceOffer(offer)) {
+      open(`<h2 id="dialog-title">Es tu propia oferta</h2><p>No podés solicitar un servicio que publicás como cuidador. Desde la home podés contratar a <strong>otros</strong> cuidadores verificados.</p><button type="button" class="primary" id="go-sitter-panel-book">Modo cuidador</button><button type="button" class="secondary" id="close-own-offer">Cerrar</button>`);
+      document.querySelector('#go-sitter-panel-book').onclick = () => { closeModal(); accountTab = 'sitter'; void ensureAccountScreen(); };
+      document.querySelector('#close-own-offer').onclick = closeModal;
+      return;
+    }
     const {data:pets,error}=await api.from('pets').select('id,name').order('created_at',{ascending:false});
     if(error) {open(`<h2 id="dialog-title">Solicitar cuidado</h2><p>${esc(error.message)}</p>`);return;}
     if(!pets.length) {open('<h2 id="dialog-title">Primero agregá tu mascota</h2><p>Su ficha es necesaria para solicitar un cuidado.</p><button class="primary" id="go-pet">Agregar mascota</button>');document.querySelector('#go-pet').onclick=petForm;return;}
