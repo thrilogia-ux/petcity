@@ -995,9 +995,21 @@ export function bootPetCity() {
     if (pins) pins.style.display = '';
     document.querySelector('#map-shell')?.classList.remove('map-verified-only');
   }
+  function updateLandingCoverage() {
+    const el = document.getElementById('landing-coverage-zones');
+    if (!el) return;
+    const cities = [...new Set((realOffers || []).map(o => String(o.city || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    if (!cities.length) {
+      el.textContent = 'Todavía hay pocas ofertas verificadas. Podés explorar perfiles de ejemplo en el mapa o postularte como cuidador.';
+      return;
+    }
+    const shown = cities.slice(0, 14);
+    el.textContent = `${shown.join(' · ')}${cities.length > shown.length ? ` y ${cities.length - shown.length} zona${cities.length - shown.length === 1 ? '' : 's'} más` : ''}.`;
+  }
   function updateDemoExploreVisibility() {
     document.body.classList.toggle('has-verified-offers', realOffers.length > 0);
     syncMyServicesChip();
+    updateLandingCoverage();
     syncDemoMapWithList();
     renderDemoMarketplaceOffers();
   }

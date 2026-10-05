@@ -253,6 +253,45 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 #guest-main .intro{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;margin-bottom:28px;padding-bottom:8px;border-bottom:1px solid var(--pc-line)}
 #guest-main .intro h1{max-width:14ch;margin:8px 0 12px}
 #guest-main .intro p{font-size:17px;line-height:1.55;max-width:42ch}
+.landing-trust{margin:22px 0 28px;padding:0 4px}
+.landing-trust-compact{margin:16px auto 20px;max-width:920px}
+.landing-below-market{margin-top:40px;padding-top:36px;border-top:1px solid var(--pc-line)}
+.landing-below-market .landing-trust{margin-top:0}
+.landing-below-market .landing-steps{border-bottom:none;padding-bottom:0}
+.landing-trust-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;list-style:none;margin:0;padding:0}
+.landing-trust-grid li{display:flex;flex-direction:column;gap:6px;padding:16px 14px;border:1px solid var(--pc-line);border-radius:18px;background:#fafcfb;min-height:100%}
+.landing-trust-icon{font-size:22px;line-height:1}
+.landing-trust-grid strong{font-size:14px;font-weight:700;color:var(--pc-ink);line-height:1.3}
+.landing-trust-grid li>span:last-child{font-size:13px;line-height:1.45;color:var(--pc-muted)}
+.landing-section-head{margin-bottom:18px}
+.landing-section-head h2{margin:6px 0 0;font-size:clamp(20px,2.2vw,26px);font-weight:700;line-height:1.25;letter-spacing:-.4px}
+.landing-section-head-inline{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.landing-section-head-inline .fine{margin:0;max-width:42ch;text-align:right}
+.landing-demo-note{margin:8px 0 0;font-size:13px;color:var(--pc-muted)}
+.landing-steps{margin:0 0 32px;padding-bottom:28px;border-bottom:1px solid var(--pc-line)}
+.landing-steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;list-style:none;margin:0;padding:0;counter-reset:pc-step}
+.landing-steps-grid li{position:relative;padding:16px 14px 14px;border:1px solid var(--pc-line);border-radius:18px;background:#fff}
+.landing-step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--pc-accent-soft);color:#155b51;font-size:13px;font-weight:800;margin-bottom:10px}
+.landing-steps-grid h3{margin:0 0 8px;font-size:16px;font-weight:700}
+.landing-steps-grid p{margin:0;font-size:13px;line-height:1.5;color:var(--pc-muted)}
+.landing-testimonials{margin:0 0 28px}
+.landing-quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.landing-quote{margin:0;padding:18px 16px;border:1px solid var(--pc-line);border-radius:18px;background:#fff;display:flex;flex-direction:column;gap:10px;min-height:100%}
+.landing-quote p{margin:0;font-size:14px;line-height:1.55;color:var(--pc-ink);flex:1}
+.landing-quote footer{margin:0;font-size:13px;font-weight:600;color:var(--pc-muted)}
+.landing-quote footer small{font-weight:500;margin-left:6px;color:#999}
+.landing-quote-tag{align-self:flex-start;background:var(--pc-accent-soft);color:#155b51;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700}
+.landing-coverage{margin:0 0 26px;padding:18px 20px;border:1px solid var(--pc-line);border-radius:20px;background:linear-gradient(135deg,#f6fbf9 0%,#fff 55%)}
+#landing-coverage-zones{font-size:14px;line-height:1.5;color:var(--pc-ink);font-weight:500}
+@media(max-width:960px){
+  .landing-trust-grid{grid-template-columns:repeat(2,1fr)}
+  .landing-steps-grid{grid-template-columns:repeat(2,1fr)}
+  .landing-quotes{grid-template-columns:1fr}
+  .landing-section-head-inline .fine{text-align:left;max-width:none}
+}
+@media(max-width:520px){
+  .landing-trust-grid,.landing-steps-grid{grid-template-columns:1fr}
+}
 .real-offers-block .real-offer-cards,.marketplace-offer-stack.cards{display:flex;flex-direction:column;gap:16px;max-width:100%;overflow:hidden;grid-template-columns:none}
 .my-active-care-block{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--pc-line)}
 .my-active-care-label{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--pc-accent)}
