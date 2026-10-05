@@ -240,7 +240,21 @@ export function bootPetCity() {
       marketplaceReady = !bookingsError;
       const bookingList = bookings || [];
       const myOpenRequests = myOpenReqRes.error ? [] : (myOpenReqRes.data || []);
-      const sitterOpenRequests = (applicationRes.data?.status === 'approved' && !sitterOpenReqRes.error) ? (sitterOpenReqRes.data || []) : [];
+      let sitterOpenRequests = [];
+      let sitterInboxError = sitterOpenReqRes.error?.message || null;
+      if (application?.status === 'approved') {
+        const inboxRpc = await api.rpc('petcity_sitter_open_request_inbox');
+        if (!inboxRpc.error && inboxRpc.data?.length) {
+          sitterOpenRequests = inboxRpc.data;
+          sitterInboxError = null;
+        } else if (!sitterOpenReqRes.error && sitterOpenReqRes.data?.length) {
+          sitterOpenRequests = sitterOpenReqRes.data;
+        } else if (inboxRpc.error && /schema cache|could not find/i.test(inboxRpc.error.message || '')) {
+          sitterInboxError = 'Falta migración 018 en Supabase (petcity_sitter_open_request_inbox).';
+        } else if (inboxRpc.error && !sitterOpenReqRes.data?.length) {
+          sitterInboxError = inboxRpc.error.message;
+        }
+      }
       let sitterInterestedRequestIds = new Set();
       if (application?.status === 'approved') {
         try {
@@ -280,12 +294,21 @@ export function bootPetCity() {
         )
         : '';
       const sitterOpenSection = application?.status === 'approved'
-        ? `<section class="open-request-sitter-band" aria-labelledby="open-request-sitter-head"><h4 class="account-subhead" id="open-request-sitter-head">Solicitudes abiertas de dueños (tu zona)</h4><p class="fine open-request-sitter-lead">Las publicaciones compatibles con tu barrio/ciudad y tus servicios activos. Respondé con <strong>Me interesa</strong>.</p>${sitterOpenCards || sitterOpenEmpty}</section>`
+        ? `<section class="open-request-sitter-band" aria-labelledby="open-request-sitter-head"><h4 class="account-subhead" id="open-request-sitter-head">Solicitudes abiertas de dueños (tu zona)</h4><p class="fine open-request-sitter-lead">Las publicaciones compatibles con tu barrio/ciudad y tus servicios activos. Respondé con <strong>Me interesa</strong>.</p>${sitterInboxError ? `<p class="open-request-guide-warn">${esc(sitterInboxError)}</p>` : ''}${sitterOpenCards || sitterOpenEmpty}</section>`
         : '';
+      const openRequestGuidePanel = accountTab === 'services' ? buildOpenRequestGuidePanel({
+        email: auth.user.email,
+        application,
+        petsCount: pets.length,
+        myOpenCount: myOpenRequests.filter(r => r.status === 'open').length,
+        sitterVisibleCount: sitterOpenRequests.length,
+        sitterServices: sitterOfferServices,
+        ownerFetchError: myOpenReqRes.error?.message,
+      }) : '';
       const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o publicá una solicitud abierta para que varios se ofrezcan.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button> <button type="button" class="secondary" id="create-open-request">Solicitud abierta</button>');
       const contents = {
         pets: `<h3>Mis mascotas</h3>${petCards}${pets.length ? '<button class="primary" id="add-real-pet">Agregar mascota</button>' : ''}`,
-        services: `<h3>Mis cuidados</h3><p>${application?.status === 'approved' ? 'Como cuidador: revisá solicitudes abiertas arriba. Como dueño: publicá o gestioná tus reservas.' : 'Reservas directas o solicitudes abiertas donde elegís al cuidador.'}</p>${sitterOpenSection}${pets.length || application?.status !== 'approved' ? `<div class="dash-tile open-request-tile open-request-tile-owner" style="margin:10px 0 16px"><strong>Solicitud abierta (dueño)</strong><p class="fine">Publicá zona, servicio y fechas. Varios cuidadores verificados pueden ofrecerse; vos elegís uno y se crea la reserva.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>` : ''}${openRequestOwnerCards}${serviceCards}`,
+        services: `${openRequestGuidePanel}<h3>Mis cuidados</h3>${sitterOpenSection}${pets.length || application?.status !== 'approved' ? `<div class="dash-tile open-request-tile open-request-tile-owner" style="margin:10px 0 16px"><strong>Paso dueño: publicar búsqueda</strong><p class="fine">Zona + servicio + fechas. Después aparece una tarjeta <strong>Solicitud abierta · …</strong> acá abajo.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>` : ''}${openRequestOwnerCards}${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
           ${application?.status === 'approved' ? `<p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa público (zona aproximada).' : 'Para aparecer en el mapa de la home, marcá tu zona una vez.'}</p>` : ''}
@@ -1518,6 +1541,23 @@ export function bootPetCity() {
   }
   function isOvernightOpenService(service) {
     return service === 'alojamiento' || service === 'vacaciones';
+  }
+  function buildOpenRequestGuidePanel({ email, application, petsCount, myOpenCount, sitterVisibleCount, sitterServices, ownerFetchError }) {
+    const sitterStatus = !application
+      ? 'Sin postulación de cuidador'
+      : application.status === 'approved'
+        ? `Cuidador aprobado · zona «${application.city || '?'}»`
+        : `Cuidador: ${stateLabels[application.status] || application.status}`;
+    const servicesLine = sitterServices.length ? sitterServices.join(', ') : 'ninguno cargado';
+    return `<aside class="open-request-guide" aria-label="Guía solicitud abierta">
+      <p class="open-request-guide-title"><strong>Estás en:</strong> Mis cuidados · ${esc(email || '')}</p>
+      <ol class="open-request-guide-steps">
+        <li><strong>Dueño</strong> (${petsCount} mascota${petsCount === 1 ? '' : 's'}): publicá con el botón verde → deberías ver <em>${myOpenCount} solicitud${myOpenCount === 1 ? '' : 'es'} abierta${myOpenCount === 1 ? '' : 's'}</em> en una tarjeta debajo.</li>
+        <li><strong>Cuidador</strong> (${esc(sitterStatus)}): servicios con precio: ${esc(servicesLine)} · <em>${sitterVisibleCount} solicitud${sitterVisibleCount === 1 ? '' : 'es'} de dueños</em> para vos ahora (sección verde arriba).</li>
+        <li>Usá <strong>dos cuentas</strong> (dueño y cuidador distintos). La misma persona dueño+cuidador también funciona, pero la solicitud la publica el dueño.</li>
+      </ol>
+      ${ownerFetchError ? `<p class="open-request-guide-warn">${esc(ownerFetchError)}</p>` : ''}
+    </aside>`;
   }
   async function openCareRequestForm(pets, profile, prefill = {}) {
     const api = getClient();

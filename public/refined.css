@@ -240,6 +240,11 @@ body:not(.demo-mode) #guest-main .content[hidden]{display:none!important}
 .spp-trust-check{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#228a7d;color:#fff;font-size:12px;font-weight:800}
 .tag-walk{background:#e8f4fd;color:#1a5a7a;border-radius:10px}
 .tag-walk-individual{background:#eef8f4;color:#196b5c}
+.open-request-guide{margin:0 0 20px;padding:16px 18px;border:2px solid #b9e9db;border-radius:18px;background:#f0faf6}
+.open-request-guide-title{margin:0 0 10px;font-size:14px}
+.open-request-guide-steps{margin:0;padding-left:20px;font-size:13px;line-height:1.55;color:var(--pc-ink)}
+.open-request-guide-steps li{margin:0 0 8px}
+.open-request-guide-warn{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#fff4e6;border:1px solid #f0d4a8;font-size:13px;color:#7a4a12}
 .open-request-sitter-band{margin:0 0 20px;padding:16px 0 8px;border-bottom:1px solid var(--pc-line)}
 .open-request-sitter-lead{margin:0 0 14px;max-width:52ch}
 .open-request-landing{margin:0 auto 24px;max-width:920px;padding:0 4px}
