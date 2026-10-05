@@ -1533,8 +1533,12 @@ export function bootPetCity() {
         p_end: end,
         p_notes: String(f.get('notes') || '').trim() || null,
       });
-      if (error) status(error.message);
-      else {
+      if (error) {
+        const msg = String(error.message || '');
+        if (/petcity_create_open_request|schema cache/i.test(msg)) {
+          status('Falta activar solicitudes abiertas en Supabase: ejecutá supabase/016_open_care_requests.sql y 017_open_care_zone_flex.sql en el SQL Editor (ver supabase/README.md).');
+        } else status(error.message);
+      } else {
         closeModal();
         accountTab = 'services';
         dashboard();

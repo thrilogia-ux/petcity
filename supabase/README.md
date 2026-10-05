@@ -17,6 +17,11 @@ El usuario informó haber ejecutado hasta 005. Antes de tocar la base, comprobar
 12. 012_shop.sql
 13. 013_walk_tracking.sql
 14. 014_shop_submit.sql
+15. 015_walk_trust_badges.sql — reglas de paseo y badges en ficha pública
+16. 016_open_care_requests.sql — **solicitud abierta** (`petcity_create_open_request`, etc.)
+17. 017_open_care_zone_flex.sql — match de zona flexible + validación de fechas
+
+Sin **016–017**, el botón «Publicar solicitud abierta» falla con *Could not find the function … schema cache*.
 
 ## Proyecto nuevo / vacío
 
