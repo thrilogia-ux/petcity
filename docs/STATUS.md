@@ -1,6 +1,6 @@
 # Estado verificable de PetCity
 
-Actualizado: landing con confianza, pasos, testimonios demo y cobertura dinámica; tarjetas verificadas/simuladas OK. **Fase 1 E2E** = circuito solicitud → reseña (ver [E2E.md](E2E.md)). Migraciones 006–013 aplicadas en entorno de prueba del usuario.
+Actualizado: Fase B solicitud abierta con home, match de zona (017) y bandeja completa. Fase A (015). **E2E:** [E2E.md](E2E.md) incluye Fase 1b Cooper. Aplicar **015–017** en Supabase además de 006–014.
 
 ## Desplegado
 
@@ -20,6 +20,8 @@ Actualizado: landing con confianza, pasos, testimonios demo y cobertura dinámic
 | Pagos MP sandbox | API Vercel + **011** + `/api/config/payments` |
 | Shop checkout | Código + **012** + **014** |
 | Tracking paseo (Fase 2) | Código + **013** — GPS activar/detener + mapa OSM |
+| Reglas de paseo + badges confianza en perfil/tarjetas | Código + **015** |
+| Solicitud abierta (varios cuidadores → dueño elige) | Código + **016–017** — home + Mis cuidados |
 | Frontend modular | `public/js/core.js`, `public/js/app.js`, `public/account.js` (ES modules) |
 
 ## Pruebas
@@ -37,6 +39,6 @@ Actualizado: landing con confianza, pasos, testimonios demo y cobertura dinámic
 
 ## Pendiente operativo (usuario)
 
-1. Ejecutar SQL 006–013 en Supabase SQL Editor (en orden).
+1. Ejecutar SQL 006–017 en Supabase SQL Editor (en orden).
 2. Configurar env Vercel para pagos (ver PAYMENTS.md).
 3. Completar matriz E2E en producción.

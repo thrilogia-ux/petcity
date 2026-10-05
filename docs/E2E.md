@@ -58,6 +58,27 @@ Checklist rápido:
 
 ---
 
+## Fase 1b — Solicitud abierta (Cooper)
+
+Requiere migraciones **016** y **017** en Supabase.
+
+| # | Paso | Quién | Dónde |
+|---|------|--------|--------|
+| 1 | Publicar solicitud (zona + servicio + fechas) | Dueño | Home → **Publicar solicitud abierta** o Mis cuidados |
+| 2 | Ver solicitud en bandeja | Cuidador (misma zona aprox.) | Mis cuidados → **Solicitudes en tu zona** |
+| 3 | **Me interesa** + mensaje | Cuidador | Modal → enviar |
+| 4 | **Ver ofertas** → Ver perfil / Elegir | Dueño | Mis cuidados → Ver ofertas (N) |
+| 5 | Reserva **pending** + cuidador acepta | Ambos | Igual que Fase 1 pasos 4–8 |
+
+Checklist:
+
+- [ ] Dueño publica paseo en Palermo (un solo día inicio=fin)
+- [ ] Cuidador con ciudad “Palermo Soho” ve la solicitud (match flexible 017)
+- [ ] Dueño elige cuidador → booking pending
+- [ ] Cuidador acepta y completa circuito
+
+---
+
 ## Fase 2 — Paseo GPS, pagos y comunidad
 
 Ejecutar migración **014_shop_submit.sql** si aún no está aplicada.

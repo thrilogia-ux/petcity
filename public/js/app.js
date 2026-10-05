@@ -211,12 +211,14 @@ export function bootPetCity() {
       if (!auth.user) return login();
       setView('account');
       fillAccountPanel(`<div class="account-panel-loading" aria-busy="true" aria-label="Cargando tu cuenta"><div class="skeleton-panel"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-tile"></div></div></div>`);
-      const [profileRes, petsRes, applicationRes, adminRes, bookingsRes] = await Promise.all([
+      const [profileRes, petsRes, applicationRes, adminRes, bookingsRes, myOpenReqRes, sitterOpenReqRes] = await Promise.all([
         api.from('profiles').select('*').eq('id', auth.user.id).maybeSingle(),
         api.from('pets').select('*').order('created_at', {ascending:false}),
         api.from('sitter_applications').select('*').eq('user_id', auth.user.id).maybeSingle(),
         api.rpc('petcity_is_admin'),
         api.from('bookings').select('id,owner_id,pet_id,offer_id,start_date,end_date,total_price_ars,status').order('created_at', {ascending:false}).limit(20),
+        api.from('open_care_requests').select('id,service,city,start_date,end_date,status,notes,open_care_request_interests(id,offer_id,status,sitter_note,sitter_offers(price_ars,unit,sitter_applications(public_name)))').eq('owner_id', auth.user.id).order('created_at', {ascending: false}).limit(12),
+        api.from('open_care_requests').select('id,service,city,start_date,end_date,notes').eq('status', 'open').order('created_at', {ascending: false}).limit(12),
       ]);
       let profile = profileRes.data;
       if (!profile && !profileRes.error) {
@@ -237,29 +239,61 @@ export function bootPetCity() {
       enhancedReady = Object.hasOwn(profile,'phone');
       marketplaceReady = !bookingsError;
       const bookingList = bookings || [];
+      const myOpenRequests = myOpenReqRes.error ? [] : (myOpenReqRes.data || []);
+      const sitterOpenRequests = (applicationRes.data?.status === 'approved' && !sitterOpenReqRes.error) ? (sitterOpenReqRes.data || []) : [];
+      let sitterInterestedRequestIds = new Set();
+      if (application?.status === 'approved') {
+        try {
+          const { data: sitterOffers } = await api.from('sitter_offers').select('id').eq('sitter_id', application.id);
+          const offerIds = (sitterOffers || []).map(o => o.id);
+          if (offerIds.length) {
+            const { data: ints } = await api.from('open_care_request_interests').select('request_id').in('offer_id', offerIds).eq('status', 'interested');
+            sitterInterestedRequestIds = new Set((ints || []).map(i => i.request_id));
+          }
+        } catch { /* sin 016 */ }
+      }
       setView('account');
       renderAccountSidebar(isAdmin);
       const petCards = pets.length ? pets.map(p=>`<div class="dash-tile" style="margin:10px 0"><div style="display:flex;align-items:center;gap:16px"><span data-pet-photo="${esc(p.photo_path||'')}" style="width:72px;height:72px;border-radius:18px;background:#e8f1e9;display:grid;place-items:center;overflow:hidden">🐾</span><div><h3>${esc(p.name)}</h3><p>${esc(p.species)}${p.breed?' · '+esc(p.breed):''}${p.size?' · '+esc(p.size):''}${p.weight_kg?' · '+esc(p.weight_kg)+' kg':''}</p></div></div><p>${esc(p.care_notes||'Sin indicaciones cargadas.')}</p><button class="dash-call" data-edit-pet="${esc(p.id)}">Ver y editar ficha</button></div>`).join('') : emptyStateBox('Todavía no cargaste mascotas', 'La ficha de tu mascota es necesaria para solicitar un cuidado verificado.', '<button type="button" class="primary" id="add-real-pet">Agregar mascota</button>');
-      const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o solicitá uno desde su perfil.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button>');
+      const openRequestOwnerCards = myOpenRequests.map(r => {
+        const interested = (r.open_care_request_interests || []).filter(i => i.status === 'interested');
+        const statusLabel = r.status === 'open' ? 'Abierta · esperando cuidadores' : r.status === 'chosen' ? 'Cuidador elegido' : 'Cancelada';
+        return `<div class="dash-tile open-request-card" style="margin:10px 0"><strong>Solicitud abierta · ${esc(serviceLabels[r.service] || r.service)}</strong><p>${esc(statusLabel)} · ${esc(r.city)} · ${esc(r.start_date)}${r.end_date !== r.start_date ? ' al ' + esc(r.end_date) : ''}</p><p class="fine">${interested.length ? `${interested.length} cuidador${interested.length === 1 ? '' : 'es'} se ofreció${interested.length === 1 ? '' : 'ron'}` : 'Todavía nadie se ofreció'}</p>${r.status === 'open' ? `<button type="button" class="dash-call" data-manage-open-request="${esc(r.id)}">Ver ofertas (${interested.length})</button> <button type="button" class="secondary" data-cancel-open-request="${esc(r.id)}">Cancelar</button>` : ''}</div>`;
+      }).join('');
+      const sitterOpenCards = sitterOpenRequests.map(r => {
+        const already = sitterInterestedRequestIds.has(r.id);
+        return `<div class="dash-tile" style="margin:10px 0"><strong>Dueño busca ${esc(serviceLabels[r.service] || r.service)}</strong><p>⌖ ${esc(r.city)} · ${esc(r.start_date)}${r.end_date !== r.start_date ? ' al ' + esc(r.end_date) : ''}</p>${r.notes ? `<p class="fine">${esc(r.notes)}</p>` : ''}${already ? '<p class="fine open-request-sent">Ya enviaste tu interés.</p>' : `<button type="button" class="dash-call" data-sitter-open-interest="${esc(r.id)}">Me interesa</button>`}</div>`;
+      }).join('');
+      const serviceCards = bookingsError ? emptyStateBox('Solicitudes en preparación', 'Estamos habilitando la bandeja de servicios en tu cuenta.') : bookingList.length ? bookingList.map(b=>`<div class="dash-tile" style="margin:10px 0"><strong>${b.owner_id===auth.user.id?'Cuidado solicitado':'Cuidado recibido'} · ${esc(stateLabels[b.status] || b.status)}</strong><p>${esc(b.start_date)}${b.end_date!==b.start_date?' al '+esc(b.end_date):''} · $${Number(b.total_price_ars).toLocaleString('es-AR')}</p><button class="dash-call" data-service="${esc(b.id)}">Ver servicio y novedades</button>${b.owner_id!==auth.user.id&&b.status==='pending'?` <button class="dash-call" data-booking="${esc(b.id)}" data-decision="accepted">Aceptar</button> <button class="secondary" data-booking="${esc(b.id)}" data-decision="rejected">Rechazar</button>`:b.owner_id===auth.user.id&&b.status==='pending'?` <button class="secondary" data-booking="${esc(b.id)}" data-decision="cancelled">Cancelar solicitud</button>`:''}</div>`).join('') : emptyStateBox('Sin cuidados todavía', 'Explorá cuidadores verificados en la home o publicá una solicitud abierta para que varios se ofrezcan.', '<button type="button" class="primary" id="go-explore-sitters">Explorar cuidadores</button> <button type="button" class="secondary" id="create-open-request">Solicitud abierta</button>');
       const contents = {
         pets: `<h3>Mis mascotas</h3>${petCards}${pets.length ? '<button class="primary" id="add-real-pet">Agregar mascota</button>' : ''}`,
-        services: `<h3>Mis cuidados</h3><p>Acá aparecen tus solicitudes, horarios y novedades del cuidado.</p>${serviceCards}`,
+        services: `<h3>Mis cuidados</h3><p>Reservas directas o solicitudes abiertas donde elegís al cuidador.</p><div class="dash-tile open-request-tile" style="margin:10px 0 16px"><strong>Solicitud abierta</strong><p class="fine">Publicá zona, servicio y fechas. Varios cuidadores verificados pueden ofrecerse; vos elegís uno y se crea la reserva.</p><button type="button" class="primary" id="create-open-request">Publicar solicitud abierta</button></div>${openRequestOwnerCards}${sitterOpenCards ? `<h4 class="account-subhead">Solicitudes en tu zona (cuidador)</h4>${sitterOpenCards}` : ''}${serviceCards}`,
         personal: `<h3>Mis datos</h3><form id="profile-form" class="account-form"><label>Nombre<input name="display_name" maxlength="100" required value="${esc(profile.display_name)}"></label><label>Email<input value="${esc(auth.user.email)}" disabled></label>${enhancedReady?`<label>Teléfono<input name="phone" type="tel" maxlength="40" value="${esc(profile.phone)}"></label><label>Dirección<input name="address" maxlength="200" autocomplete="street-address" value="${esc(profile.address)}"></label><label>Ciudad<input name="city" maxlength="100" autocomplete="address-level2" value="${esc(profile.city)}"></label>`:'<p>Teléfono y dirección se habilitarán con la próxima actualización.</p>'}<button class="primary">Guardar datos</button></form><p class="fine">Tu dirección y teléfono son privados.</p>`,
         sitter: `<h3>Quiero cuidar mascotas</h3><p>${application ? `Postulación: ${esc(stateLabels[application.status] || application.status)}${application.review_note ? ' · '+esc(application.review_note) : ''}` : 'Tu oferta necesita revisión antes de publicarse.'}</p>
           ${application?.status === 'approved' ? `<p class="fine">${application.lat != null && application.lng != null ? 'Tu ubicación ya está en el mapa público (zona aproximada).' : 'Para aparecer en el mapa de la home, marcá tu zona una vez.'}</p>` : ''}
           <button class="dash-call" id="real-application">${application ? 'Ver postulación' : 'Empezar postulación'}</button>
-          ${application?.status === 'approved' ? '<button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
+          ${application?.status === 'approved' ? '<button class="dash-call" id="sitter-map-location">Marcar mi zona en el mapa</button><button class="dash-call" id="manage-offers">Mis servicios y precios</button><button class="secondary" id="manage-walk-rules">Reglas de paseo</button><button class="secondary" id="manage-availability">Agenda y disponibilidad</button><button class="secondary" id="upload-offer-photo">Subir foto de mi oferta</button>' : ''}`,
         community: ''
       };
       fillAccountPanel(`<header class="account-panel-head"><div><div class="eyebrow">MI CUENTA</div><h2 id="dialog-title">Hola, ${esc(profile.display_name || auth.user.email)}</h2><p class="fine">Gestioná mascotas, servicios y tu perfil de cuidador desde un solo lugar.</p></div><button type="button" class="secondary" id="real-signout">Cerrar sesión</button></header><div class="account-panel-body">${contents[accountTab]||contents.pets}</div>`);
       document.querySelector('#add-real-pet')?.addEventListener('click',petForm);
       document.querySelector('#go-explore-sitters')?.addEventListener('click', goExploreHome);
+      document.querySelectorAll('#create-open-request').forEach(btn => btn.addEventListener('click', () => openCareRequestForm(pets, profile)));
+      document.querySelectorAll('[data-manage-open-request]').forEach(btn => btn.onclick = () => openCareRequestOwnerDetail(btn.dataset.manageOpenRequest));
+      document.querySelectorAll('[data-cancel-open-request]').forEach(btn => btn.onclick = async () => {
+        btn.disabled = true;
+        const { error } = await api.rpc('petcity_cancel_open_request', { p_request: btn.dataset.cancelOpenRequest });
+        if (error) status(error.message);
+        else dashboard();
+      });
+      document.querySelectorAll('[data-sitter-open-interest]').forEach(btn => btn.onclick = () => openSitterInterestForm(btn.dataset.sitterOpenInterest, sitterOpenRequests, application));
       document.querySelectorAll('[data-edit-pet]').forEach(button=>button.onclick=()=>petForm(pets.find(p=>p.id===button.dataset.editPet)));
       document.querySelectorAll('[data-pet-photo]').forEach(async node=>{if(node.dataset.petPhoto){const url=await signedPhoto(node.dataset.petPhoto);if(url)node.innerHTML=`<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover">`;}});
       document.querySelectorAll('[data-service]').forEach(button=>button.onclick=()=>serviceDetail(bookingList.find(b=>b.id===button.dataset.service),auth.user.id));
       document.querySelector('#profile-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.target);const changes={display_name:String(form.get('display_name')).trim()};if(enhancedReady)Object.assign(changes,{phone:String(form.get('phone')).trim(),address:String(form.get('address')).trim(),city:String(form.get('city')).trim()});const {error}=await api.from('profiles').update(changes).eq('id',auth.user.id);if(error)status(error.message);else dashboard();});
       document.querySelector('#real-application')?.addEventListener('click',()=>applicationForm(application));
       document.querySelector('#manage-offers')?.addEventListener('click',()=>sitterOffersManager(application));
+      document.querySelector('#manage-walk-rules')?.addEventListener('click',()=>sitterWalkRulesForm(application));
       document.querySelector('#manage-availability')?.addEventListener('click',()=>sitterAvailabilityForm(application));
       document.querySelector('#upload-offer-photo')?.addEventListener('click',()=>sitterPhotoUpload(application));
       document.querySelector('#sitter-map-location')?.addEventListener('click', () => sitterSetMapLocation(application));
@@ -272,6 +306,7 @@ export function bootPetCity() {
         if(result.error){status(result.error.message);button.disabled=false;}else dashboard();
       });
       await syncNav();
+      void refreshOpenRequestNavHint(auth.user);
       document.querySelector('#real-signout').onclick = async () => {
         await api.auth.signOut();
         await syncNav();
@@ -638,7 +673,63 @@ export function bootPetCity() {
       accountNav.hidden = !user;
       careNav.hidden = !user;
       document.body.classList.toggle('has-real-account', Boolean(user));
+      await refreshOpenRequestNavHint(user);
     } catch { accountNav.hidden = true; careNav.hidden = true; document.body.classList.remove('has-real-account'); }
+  }
+  async function refreshOpenRequestNavHint(user) {
+    careNav.textContent = 'Mis cuidados';
+    careNav.removeAttribute('data-open-offers');
+    if (!user) return;
+    try {
+      const { data, error } = await getClient().from('open_care_requests')
+        .select('id, open_care_request_interests(id)')
+        .eq('owner_id', user.id)
+        .eq('status', 'open');
+      if (error) return;
+      const offers = (data || []).reduce((n, r) => n + (r.open_care_request_interests?.length || 0), 0);
+      if (offers > 0) {
+        careNav.textContent = `Mis cuidados (${offers} oferta${offers === 1 ? '' : 's'})`;
+        careNav.dataset.openOffers = String(offers);
+      }
+    } catch { /* tablas 016+ no aplicadas */ }
+  }
+  const chipCategoryToService = {
+    Paseos: 'paseo',
+    'Cuidado en casa': 'cuidado_en_casa',
+    Alojamiento: 'alojamiento',
+    Vacaciones: 'vacaciones',
+  };
+  function openRequestPrefillFromLanding() {
+    const place = document.querySelector('#place')?.value?.trim().split(',')[0]?.trim() || '';
+    const category = document.querySelector('.chip.active')?.dataset.category;
+    const service = chipCategoryToService[category] || 'paseo';
+    const overnight = service === 'alojamiento' || service === 'vacaciones';
+    const start = document.querySelector('#search-start')?.value
+      || document.querySelector('#search input[type="date"]')?.value
+      || '';
+    const end = document.querySelector('#search-end')?.value || start;
+    return { city: place, service, start, end, overnight };
+  }
+  function initOpenRequestLanding() {
+    if (document.getElementById('open-request-landing')) return;
+    const anchor = document.querySelector('.landing-trust-compact') || document.querySelector('#search')?.closest('.content');
+    if (!anchor) return;
+    const band = document.createElement('section');
+    band.id = 'open-request-landing';
+    band.className = 'open-request-landing';
+    band.setAttribute('aria-labelledby', 'open-request-landing-title');
+    band.innerHTML = `<div class="open-request-landing-inner">
+      <div class="open-request-landing-copy">
+        <div class="eyebrow">Estilo Cooper</div>
+        <h2 id="open-request-landing-title">¿No encontrás el cuidador ideal?</h2>
+        <p class="fine">Publicá una solicitud abierta con zona, servicio y fechas. Varios cuidadores verificados pueden ofrecerse y vos elegís con quién reservar.</p>
+      </div>
+      <button type="button" class="primary" id="open-request-from-home">Publicar solicitud abierta</button>
+    </div>`;
+    anchor.insertAdjacentElement('afterend', band);
+    document.getElementById('open-request-from-home')?.addEventListener('click', () => {
+      openCareRequestForm(null, null, openRequestPrefillFromLanding());
+    });
   }
   async function sitterOffersManager(application) {
     open(`<div class="eyebrow">MI OFERTA</div><h2 id="dialog-title">Servicios y precios</h2>
@@ -697,6 +788,39 @@ export function bootPetCity() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   }
+  async function sitterWalkRulesForm(application) {
+    if (!application || application.status !== 'approved') return;
+    const wm = application.walk_mode || '';
+    const wmd = application.walk_max_dogs != null ? String(application.walk_max_dogs) : '';
+    open(`<div class="eyebrow">PASEOS</div><h2 id="dialog-title">Reglas de paseo</h2>
+      <p class="fine">Dueños verán esta info en tu perfil y en las tarjetas cuando ofrezcas paseos.</p>
+      <form id="walk-rules-form" class="account-form">
+        <label>Modalidad<select name="walk_mode">
+          <option value="">Sin especificar</option>
+          <option value="individual"${wm === 'individual' ? ' selected' : ''}>Solo paseos individuales</option>
+          <option value="small_group"${wm === 'small_group' ? ' selected' : ''}>Grupo chico (varios perros)</option>
+          <option value="flexible"${wm === 'flexible' ? ' selected' : ''}>Individual o grupo chico</option>
+        </select></label>
+        <label>Máx. perros por paseo<input name="walk_max_dogs" type="number" min="1" max="8" placeholder="Ej. 2" value="${esc(wmd)}"></label>
+        <button class="primary">Guardar reglas</button>
+      </form><p id="account-status" role="status"></p><button class="secondary" id="back-account">Volver</button>`);
+    document.querySelector('#back-account').onclick = dashboard;
+    document.querySelector('#walk-rules-form').onsubmit = async ev => {
+      ev.preventDefault();
+      const f = new FormData(ev.target);
+      const modeRaw = String(f.get('walk_mode') || '').trim();
+      const maxRaw = String(f.get('walk_max_dogs') || '').trim();
+      const { error } = await getClient().rpc('petcity_update_walk_settings', {
+        p_walk_mode: modeRaw || null,
+        p_walk_max_dogs: maxRaw ? Number(maxRaw) : null,
+      });
+      if (error) status(error.message);
+      else {
+        status('Reglas de paseo guardadas.');
+        refreshRealOffers();
+      }
+    };
+  }
   async function sitterPhotoUpload(application) {
     open(`<div class="eyebrow">FOTOS</div><h2 id="dialog-title">Fotos de tu servicio</h2>
       <form id="offer-photo-form" class="account-form"><label>Foto<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><button class="primary">Enviar a revisión</button></form>
@@ -723,6 +847,8 @@ export function bootPetCity() {
       p.accepts_cats === false ? 'Solo perros' : null,
       p.accepts_large_dogs === false ? 'Sin perros grandes' : null,
     ].filter(Boolean);
+    const trustBadgesHtml = buildSitterTrustBadges(p);
+    const walkRulesHtml = walkRulesProfileSection(p);
     const ratingHtml = p.rating_count
       ? `<p class="spp-rating"><b>★ ${esc(String(p.rating_avg))}</b> · ${p.rating_count} reseña${p.rating_count === 1 ? '' : 's'} verificada${p.rating_count === 1 ? '' : 's'}</p>`
       : '<p class="spp-rating spp-rating-new"><b>★</b> Nuevo en PetCity</p>';
@@ -741,6 +867,8 @@ export function bootPetCity() {
         </div>
       </header>
       ${p.headline ? `<p class="spp-headline">${esc(p.headline)}</p>` : ''}
+      ${trustBadgesHtml}
+      ${walkRulesHtml}
       <section class="spp-section">
         <h3 class="spp-section-title">Sobre el cuidador</h3>
         <p class="spp-bio">${esc(p.bio)}</p>
@@ -970,14 +1098,14 @@ export function bootPetCity() {
     document.querySelector('#guest-main .content')?.appendChild(marketplaceListColumn);
   }
   const DEMO_MARKETPLACE_OFFERS = [
-    { id: 'demo-lucia-paseo', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Paseos tranquilos y atención personalizada. Te comparto novedades durante el cuidado.', service: 'paseo', price_ars: 8500, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
+    { id: 'demo-lucia-paseo', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Paseos tranquilos y atención personalizada. Te comparto novedades durante el cuidado.', service: 'paseo', walk_mode: 'individual', walk_max_dogs: 1, price_ars: 8500, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
     { id: 'demo-lucia-casa', demoPersonId: 1, public_name: 'Lucía M.', city: 'Palermo Soho', bio: 'Visitas y cuidado en tu casa manteniendo la rutina de tu mascota.', service: 'cuidado_en_casa', price_ars: 9800, unit: 'visita', portrait_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=350&q=80', rating_avg: 4.9, rating_count: 48 },
     { id: 'demo-martin-aloj', demoPersonId: 2, public_name: 'Martín R.', city: 'Palermo Hollywood', bio: 'Recibo mascotas en casa con espacio para jugar y tiempo para acompañarlas.', service: 'alojamiento', price_ars: 13000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=350&q=80', rating_avg: 5, rating_count: 32 },
     { id: 'demo-sofia-casa', demoPersonId: 3, public_name: 'Sofía G.', city: 'Villa Crespo', bio: 'Visitas a domicilio para mantener las rutinas de tu mascota mientras no estás.', service: 'cuidado_en_casa', price_ars: 10500, unit: 'visita', portrait_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=350&q=80', rating_avg: 4.8, rating_count: 67 },
-    { id: 'demo-sofia-paseo', demoPersonId: 3, public_name: 'Sofía G.', city: 'Villa Crespo', bio: 'Paseos en grupo chico o individuales según lo que necesite tu perro.', service: 'paseo', price_ars: 9200, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=350&q=80', rating_avg: 4.8, rating_count: 67 },
+    { id: 'demo-sofia-paseo', demoPersonId: 3, public_name: 'Sofía G.', city: 'Villa Crespo', bio: 'Paseos en grupo chico o individuales según lo que necesite tu perro.', service: 'paseo', walk_mode: 'flexible', price_ars: 9200, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=350&q=80', rating_avg: 4.8, rating_count: 67 },
     { id: 'demo-nico-vac', demoPersonId: 4, public_name: 'Nicolás P.', city: 'Recoleta', bio: 'Cuidado flexible para escapadas y viajes. Coordinamos las necesidades de cada mascota.', service: 'vacaciones', price_ars: 15000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=350&q=80', rating_avg: 4.9, rating_count: 25 },
-    { id: 'demo-camila-paseo', demoPersonId: 5, public_name: 'Camila F.', city: 'Belgrano', bio: 'Paseos y visitas con horarios adaptados a tu rutina.', service: 'paseo', price_ars: 9000, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=350&q=80', rating_avg: 4.7, rating_count: 41 },
-    { id: 'demo-valentina-paseo', demoPersonId: 6, public_name: 'Valentina L.', city: 'Colegiales', bio: 'Especialista en paseos largos y perros con mucha energía.', service: 'paseo', price_ars: 7800, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=350&q=80', rating_avg: 4.6, rating_count: 19 },
+    { id: 'demo-camila-paseo', demoPersonId: 5, public_name: 'Camila F.', city: 'Belgrano', bio: 'Paseos y visitas con horarios adaptados a tu rutina.', service: 'paseo', walk_mode: 'small_group', walk_max_dogs: 2, price_ars: 9000, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=350&q=80', rating_avg: 4.7, rating_count: 41 },
+    { id: 'demo-valentina-paseo', demoPersonId: 6, public_name: 'Valentina L.', city: 'Colegiales', bio: 'Especialista en paseos largos y perros con mucha energía.', service: 'paseo', walk_mode: 'individual', walk_max_dogs: 1, price_ars: 7800, unit: 'paseo', portrait_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=350&q=80', rating_avg: 4.6, rating_count: 19 },
     { id: 'demo-tomas-aloj', demoPersonId: 7, public_name: 'Tomás E.', city: 'Núñez', bio: 'Alojamiento en casa con patio. Ideal para escapadas de fin de semana.', service: 'alojamiento', price_ars: 11000, unit: 'noche', portrait_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=350&q=80', rating_avg: 4.8, rating_count: 14 },
   ];
   const DEMO_SAVED_KEY = 'petcity-saved-demo-offers';
@@ -1034,6 +1162,44 @@ export function bootPetCity() {
     if (!count) return '<span class="card-rating card-rating-new"><b>★</b> Nuevo</span>';
     const avg = o.rating_avg != null ? esc(String(o.rating_avg)) : '—';
     return `<span class="card-rating"><b>★</b> ${avg} <span class="muted">(${count})</span></span>`;
+  }
+  function walkRuleTagsHtml(o) {
+    if (o.service !== 'paseo') return '';
+    const mode = o.walk_mode;
+    const max = o.walk_max_dogs != null ? Number(o.walk_max_dogs) : (o.max_pets === 1 ? 1 : null);
+    const tags = [];
+    if (mode === 'individual' || max === 1) tags.push('<span class="tag tag-walk tag-walk-individual">Paseo individual</span>');
+    else if (mode === 'small_group' || (max && max <= 3)) {
+      const n = max || 3;
+      tags.push(`<span class="tag tag-walk">Grupo chico · hasta ${n} perros</span>`);
+    } else if (max) tags.push(`<span class="tag tag-walk">Hasta ${max} perros por paseo</span>`);
+    else if (mode === 'flexible') tags.push('<span class="tag tag-walk">Individual o grupo chico</span>');
+    return tags.join('');
+  }
+  function buildSitterTrustBadges(p) {
+    const photoCount = Number(p.photo_count) || (Array.isArray(p.photos) ? p.photos.length : 0);
+    const ratingCount = Number(p.rating_count) || 0;
+    const items = [
+      { label: 'Revisado por el equipo PetCity', show: Boolean(p.reviewed_at) },
+      { label: 'Fotos del servicio aprobadas', show: photoCount > 0 },
+      { label: 'Zona visible en el mapa', show: p.lat != null && p.lng != null },
+      { label: `${ratingCount} reseña${ratingCount === 1 ? '' : 's'} verificada${ratingCount === 1 ? '' : 's'}`, show: ratingCount > 0 },
+    ].filter(i => i.show);
+    if (!items.length) return '';
+    return `<section class="spp-section spp-trust"><h3 class="spp-section-title">Confianza PetCity</h3><ul class="spp-trust-list">${items.map(i => `<li class="spp-trust-badge"><span class="spp-trust-check" aria-hidden="true">✓</span>${esc(i.label)}</li>`).join('')}</ul></section>`;
+  }
+  function walkRulesProfileSection(p) {
+    if (p.service !== 'paseo') return '';
+    const mode = p.walk_mode;
+    const max = p.walk_max_dogs != null ? Number(p.walk_max_dogs) : null;
+    let line = '';
+    if (mode === 'individual' || max === 1) line = 'Ofrece paseos individuales (un perro por salida).';
+    else if (mode === 'small_group' && max) line = `Puede pasear hasta ${max} perros en el mismo recorrido (grupo chico).`;
+    else if (mode === 'small_group') line = 'Paseos en grupo chico con pocos perros.';
+    else if (mode === 'flexible') line = 'Combina paseos individuales y grupos chicos según disponibilidad.';
+    else if (max) line = `Hasta ${max} perros por paseo.`;
+    else return '';
+    return `<section class="spp-section spp-walk-rules"><h3 class="spp-section-title">Reglas de paseo</h3><p class="spp-bio">${esc(line)}</p></section>`;
   }
   async function attachSitterRatings(offers) {
     const firstOfferByApp = new Map();
@@ -1117,7 +1283,7 @@ export function bootPetCity() {
           <div class="cardrow"><span class="name">${esc(o.public_name)}</span></div>
           <div class="muted">⌖ ${esc(o.city)} · ${serviceLabel}</div>
           ${o.bio ? `<div class="card-bio-wrap"><p class="description card-bio-text">${esc(o.bio)}</p><button type="button" class="card-read-more" ${viewAttr}="${viewVal}">Leer más</button></div>` : ''}
-          <div class="tags"><span class="tag">${serviceLabel}</span></div>
+          <div class="tags"><span class="tag">${serviceLabel}</span>${walkRuleTagsHtml(o)}</div>
           <div class="cardfoot cardfoot-verified">
             <div class="cardfoot-price-col">
               <span class="price price-verified">$${Number(o.price_ars).toLocaleString('es-AR')} <small>/ ${esc(o.unit)}</small></span>
@@ -1266,7 +1432,7 @@ export function bootPetCity() {
     offersSection.innerHTML = offersLoadingHtml();
     try {
       const {data,error}=await getClient().from('sitter_applications')
-        .select('id,public_name,city,bio,headline,sitter_offers(id,service,price_ars,unit),sitter_offer_photos(photo_path,sort_order,status)')
+        .select('id,public_name,city,bio,headline,max_pets,walk_mode,walk_max_dogs,reviewed_at,sitter_offers(id,service,price_ars,unit),sitter_offer_photos(photo_path,sort_order,status)')
         .eq('status','approved');
       if(error) {
         offersSection.innerHTML = emptyStateBox('No pudimos cargar cuidadores verificados', esc(error.message));
@@ -1277,7 +1443,7 @@ export function bootPetCity() {
         const photo_path=(a.sitter_offer_photos||[])
           .filter(p=>p.status==='approved')
           .sort((x,y)=>x.sort_order-y.sort_order)[0]?.photo_path||null;
-        return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path}));
+        return (a.sitter_offers||[]).map(o=>({...o,application_id:a.id,public_name:a.public_name,city:a.city,bio:a.bio,headline:a.headline,photo_path,max_pets:a.max_pets,walk_mode:a.walk_mode,walk_max_dogs:a.walk_max_dogs,reviewed_at:a.reviewed_at}));
       });
       realOffers = await attachSitterRatings(realOffers);
       activeCareBookings = [];
@@ -1307,6 +1473,143 @@ export function bootPetCity() {
       offersSection.innerHTML = emptyStateBox('Error al cargar ofertas', 'Revisá tu conexión e intentá recargar la página.');
       updateDemoExploreVisibility();
     }
+  }
+  function isOvernightOpenService(service) {
+    return service === 'alojamiento' || service === 'vacaciones';
+  }
+  async function openCareRequestForm(pets, profile, prefill = {}) {
+    const api = getClient();
+    const { data: { user } } = await api.auth.getUser();
+    if (!user) return login();
+    const petList = pets?.length ? pets : (await api.from('pets').select('id,name').order('created_at', { ascending: false })).data || [];
+    if (!petList.length) {
+      open('<h2 id="dialog-title">Primero agregá tu mascota</h2><p>La ficha es necesaria para publicar una solicitud.</p><button class="primary" id="go-pet">Agregar mascota</button>');
+      document.querySelector('#go-pet').onclick = petForm;
+      return;
+    }
+    const defaultCity = prefill.city || profile?.city || '';
+    const initialService = prefill.service || 'paseo';
+    const overnight = prefill.overnight != null ? prefill.overnight : isOvernightOpenService(initialService);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+    const startVal = prefill.start || '';
+    const endVal = prefill.end || prefill.start || '';
+    open(`<div class="eyebrow">SOLICITUD ABIERTA</div><h2 id="dialog-title">Publicar búsqueda de cuidador</h2>
+      <p class="fine">Cuidadores verificados en tu zona (match flexible) y con el mismo servicio podrán ofrecerse. Vos elegís uno.</p>
+      <form id="open-request-form" class="account-form">
+        <label>Mascota<select name="pet">${petList.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>
+        <label>Servicio<select name="service">${['paseo', 'cuidado_en_casa', 'alojamiento', 'vacaciones'].map(s => `<option value="${s}"${s === initialService ? ' selected' : ''}>${esc(serviceLabels[s])}</option>`).join('')}</select></label>
+        <label>Zona / ciudad<input name="city" maxlength="100" required value="${esc(defaultCity)}" placeholder="Ej. Palermo"></label>
+        <label id="open-req-start-label">${overnight ? 'Check-in' : 'Fecha'}<input name="start" type="date" min="${today}" required value="${esc(startVal)}"></label>
+        <label id="open-req-end-wrap"${overnight ? '' : ' hidden'}>${overnight ? 'Check-out' : 'Hasta'}<input name="end" type="date" min="${today}" value="${esc(endVal)}"></label>
+        <label>Notas (opcional)<textarea name="notes" maxlength="800" rows="3" placeholder="Horarios, tamaño del perro, etc."></textarea></label>
+        <button class="primary">Publicar solicitud</button>
+      </form><p id="account-status" role="status"></p>`);
+    const formEl = document.querySelector('#open-request-form');
+    const serviceSelect = formEl.querySelector('[name=service]');
+    const endWrap = document.querySelector('#open-req-end-wrap');
+    const startLabel = document.querySelector('#open-req-start-label');
+    const syncOpenReqDates = () => {
+      const svc = serviceSelect.value;
+      const isOver = isOvernightOpenService(svc);
+      endWrap.hidden = !isOver;
+      startLabel.firstChild.textContent = isOver ? 'Check-in' : 'Fecha';
+      if (!isOver) formEl.querySelector('[name=end]').value = formEl.querySelector('[name=start]').value;
+    };
+    serviceSelect.addEventListener('change', syncOpenReqDates);
+    formEl.querySelector('[name=start]')?.addEventListener('change', () => {
+      if (endWrap.hidden) formEl.querySelector('[name=end]').value = formEl.querySelector('[name=start]').value;
+    });
+    formEl.onsubmit = async ev => {
+      ev.preventDefault();
+      const f = new FormData(formEl);
+      const service = String(f.get('service'));
+      const start = String(f.get('start'));
+      const end = isOvernightOpenService(service) ? String(f.get('end')) : start;
+      const { error } = await api.rpc('petcity_create_open_request', {
+        p_pet: f.get('pet'),
+        p_service: service,
+        p_city: String(f.get('city')).trim(),
+        p_start: start,
+        p_end: end,
+        p_notes: String(f.get('notes') || '').trim() || null,
+      });
+      if (error) status(error.message);
+      else {
+        closeModal();
+        accountTab = 'services';
+        dashboard();
+      }
+    };
+  }
+  async function openCareRequestOwnerDetail(requestId) {
+    const { data: req, error } = await getClient().from('open_care_requests').select('id,service,city,start_date,end_date,status,notes,open_care_request_interests(id,offer_id,status,sitter_note,sitter_offers(price_ars,unit,sitter_applications(public_name)))').eq('id', requestId).maybeSingle();
+    if (error || !req) {
+      open(`<h2 id="dialog-title">Solicitud</h2><p>${esc(error?.message || 'No encontramos esta solicitud.')}</p>`);
+      return;
+    }
+    const interested = (req.open_care_request_interests || []).filter(i => i.status === 'interested');
+    open(`<div class="eyebrow">SOLICITUD ABIERTA</div><h2 id="dialog-title">Elegí un cuidador</h2>
+      <p>${esc(serviceLabels[req.service] || req.service)} · ${esc(req.city)} · ${esc(req.start_date)}${req.end_date !== req.start_date ? ' al ' + esc(req.end_date) : ''}</p>
+      ${req.notes ? `<p class="fine">${esc(req.notes)}</p>` : ''}
+      ${interested.length ? interested.map(i => {
+        const name = i.sitter_offers?.sitter_applications?.public_name || 'Cuidador';
+        const price = i.sitter_offers?.price_ars;
+        const unit = i.sitter_offers?.unit;
+        return `<div class="dash-tile open-request-offer" style="margin:12px 0"><strong>${esc(name)}</strong>${price != null ? `<p>$${Number(price).toLocaleString('es-AR')} / ${esc(unit || '')}</p>` : ''}${i.sitter_note ? `<p class="fine">${esc(i.sitter_note)}</p>` : ''}<div class="open-request-offer-actions"><button type="button" class="secondary" data-view-offer-profile="${esc(i.offer_id)}">Ver perfil</button><button type="button" class="primary" data-choose-open="${esc(req.id)}" data-choose-offer="${esc(i.offer_id)}">Elegir este cuidador</button></div></div>`;
+      }).join('') : '<p class="fine">Todavía no hay cuidadores interesados. Volvé a Mis cuidados y tocá <strong>Ver ofertas</strong> cuando se sumen.</p>'}
+      <button type="button" class="secondary" id="back-services-open">Volver a Mis cuidados</button>`);
+    document.querySelector('#back-services-open').onclick = openServicesHub;
+    document.querySelectorAll('[data-view-offer-profile]').forEach(btn => {
+      btn.onclick = () => publicSitterProfile(btn.dataset.viewOfferProfile);
+    });
+    document.querySelectorAll('[data-choose-open]').forEach(btn => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const { error: chooseError } = await getClient().rpc('petcity_choose_open_request', {
+          p_request: btn.dataset.chooseOpen,
+          p_offer: btn.dataset.chooseOffer,
+        });
+        if (chooseError) { status(chooseError.message); btn.disabled = false; }
+        else {
+          closeModal();
+          open(`<div class="eyebrow">RESERVA CREADA</div><h2 id="dialog-title">Elegiste a tu cuidador</h2>
+            <p>Se envió la solicitud al cuidador (estado pendiente). Todavía no hay pago.</p>
+            <button type="button" class="primary" id="go-account">Ir a Mis cuidados</button>`);
+          document.querySelector('#go-account').onclick = openServicesHub;
+        }
+      };
+    });
+  }
+  async function openSitterInterestForm(requestId, openRequests, application) {
+    if (!application || application.status !== 'approved') return;
+    const req = (openRequests || []).find(r => r.id === requestId);
+    if (!req) return;
+    const api = getClient();
+    const { data: offers, error } = await api.from('sitter_offers').select('id,service,price_ars,unit').eq('sitter_id', application.id).eq('service', req.service);
+    if (error || !offers?.length) {
+      open(`<h2 id="dialog-title">Oferta requerida</h2><p>Publicá un precio para ${esc(serviceLabels[req.service] || req.service)} en Mis servicios y precios.</p><button class="secondary" id="back-account">Volver</button>`);
+      document.querySelector('#back-account').onclick = dashboard;
+      return;
+    }
+    open(`<div class="eyebrow">SOLICITUD ABIERTA</div><h2 id="dialog-title">Ofrecerme para este cuidado</h2>
+      <p>${esc(serviceLabels[req.service])} · ${esc(req.city)} · ${esc(req.start_date)}</p>
+      <form id="interest-form" class="account-form">
+        <label>Tu oferta<select name="offer">${offers.map(o => `<option value="${esc(o.id)}">$${Number(o.price_ars).toLocaleString('es-AR')} / ${esc(o.unit)}</option>`).join('')}</select></label>
+        <label>Mensaje al dueño (opcional)<textarea name="note" maxlength="400" rows="3"></textarea></label>
+        <button class="primary">Enviar interés</button>
+      </form><p id="account-status" role="status"></p><button class="secondary" id="back-account">Volver</button>`);
+    document.querySelector('#back-account').onclick = dashboard;
+    document.querySelector('#interest-form').onsubmit = async ev => {
+      ev.preventDefault();
+      const f = new FormData(ev.target);
+      const { error: rpcError } = await api.rpc('petcity_interest_open_request', {
+        p_request: requestId,
+        p_offer: f.get('offer'),
+        p_note: String(f.get('note') || '').trim() || null,
+      });
+      if (rpcError) status(rpcError.message);
+      else { closeModal(); dashboard(); }
+    };
   }
   async function realBooking(offer) {
     if(!offer) return;
@@ -1353,6 +1656,7 @@ export function bootPetCity() {
     if (j?.enabled) window.PETCITY_PAYMENTS = true;
   }).catch(() => {});
   refreshRealOffers();
+  initOpenRequestLanding();
   window.petcityDemoRender?.();
   if (location.hash.includes('comunidad') || new URLSearchParams(location.search).has('post')) setTimeout(() => { setView('community', false); community(); }, 300);
   syncViewFromHash();
